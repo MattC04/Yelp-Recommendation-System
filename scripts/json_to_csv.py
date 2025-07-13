@@ -33,8 +33,8 @@ def json_to_csv(json_path, csv_path, fields=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert Yelp JSON to CSV.")
-    parser.add_argument('--input', type=str, required=True, help='Path to input JSON file')
-    parser.add_argument('--output', type=str, required=True, help='Path to output CSV file')
+    parser.add_argument('--input', type=str, required=True, help='Path to input JSON file (e.g., data/yelp_academic_dataset_review.json)')
+    parser.add_argument('--output', type=str, required=True, help='Path to output CSV file (e.g., data/yelp_reviews.csv)')
     parser.add_argument('--fields', type=str, nargs='+', default=None, help='Fields to extract (default: auto-detect by file type)')
     args = parser.parse_args()
 

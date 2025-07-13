@@ -49,21 +49,13 @@ def run_lda_analysis(input_csv, output_csv, text_column='text_clean', num_topics
     texts = df[text_column].astype(str).tolist()
     
     print(f"Running LDA on {len(texts)} reviews with {num_topics} topics...")
-    
-    # Create and train LDA model
     lda_model, dictionary, corpus, texts_processed = create_lda_model(
         texts, num_topics=num_topics, passes=passes
     )
     
-    # Assign topics to reviews
     topic_assignments = assign_topics_to_reviews(lda_model, corpus, texts_processed)
-    
-    # Add topic assignments to dataframe
     df['topic_id'] = topic_assignments
-    
-    # Get topic keywords
     topic_keywords = get_topic_keywords(lda_model)
-    
     # Save results
     df.to_csv(output_csv, index=False)
     
@@ -84,8 +76,8 @@ def run_lda_analysis(input_csv, output_csv, text_column='text_clean', num_topics
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run LDA topic modeling on Yelp reviews.")
-    parser.add_argument('--input', type=str, required=True, help='Path to input CSV (with cleaned text)')
-    parser.add_argument('--output', type=str, required=True, help='Path to output CSV (with topic assignments)')
+    parser.add_argument('--input', type=str, required=True, help='Path to input CSV (e.g., output/yelp_reviews_sentiment.csv)')
+    parser.add_argument('--output', type=str, required=True, help='Path to output CSV (e.g., output/yelp_reviews_topics.csv)')
     parser.add_argument('--text_column', type=str, default='text_clean', help='Column with cleaned review text')
     parser.add_argument('--num_topics', type=int, default=10, help='Number of topics to extract')
     parser.add_argument('--passes', type=int, default=15, help='Number of passes for LDA training')
