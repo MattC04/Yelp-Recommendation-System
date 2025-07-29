@@ -1,50 +1,57 @@
 <template>
-  <div class="yelp-search">
-    <h2>Find the Best Restaurants</h2>
-    
-    <!-- Location Search -->
-    <div class="search-section">
-      <h3>Enter Your Location</h3>
-      <input 
-        v-model="location" 
-        @keyup.enter="searchByLocation" 
-        placeholder="Enter city, state, or zip code..." 
-        class="location-input"
-      />
-      <button @click="searchByLocation" class="search-btn">Find Top Restaurants</button>
+  <div class="search-container">
+    <!-- Logo and Title Section -->
+    <div class="logo-section">
+      <div class="logo">🍽️</div>
+      <h1 class="app-title">BELP</h1>
+      <h2 class="main-heading">Find the Best Restaurants</h2>
     </div>
 
-    <!-- Craving Search (existing) -->
+    <!-- Location Search Section -->
     <div class="search-section">
-      <h3>Or Search by Craving</h3>
-      <input 
-        v-model="query" 
-        @keyup.enter="searchByCraving" 
-        placeholder="Type your craving or occasion..." 
-        class="craving-input"
-      />
-      <button @click="searchByCraving" class="search-btn">Search</button>
+      <label class="search-label">Enter Your Location</label>
+      <div class="input-button-group">
+        <input 
+          v-model="location" 
+          @keyup.enter="searchByLocation"
+          type="text" 
+          placeholder="Enter city, state, or zip code..." 
+          class="location-input"
+        >
+        <button @click="searchByLocation" class="search-btn">Find Top Restaurants</button>
+      </div>
     </div>
 
-    <!-- Loading and Error States -->
-    <div v-if="loading" class="loading">Loading...</div>
-    <div v-if="error" class="error">{{ error }}</div>
+    <!-- Craving Search Section -->
+    <div class="search-section">
+      <label class="search-label">Or Search by Craving</label>
+      <div class="input-button-group">
+        <input 
+          v-model="query" 
+          @keyup.enter="searchByCraving"
+          type="text" 
+          placeholder="Type your craving or occasion..." 
+          class="craving-input"
+        >
+        <button @click="searchByCraving" class="search-btn">Search</button>
+      </div>
+    </div>
 
-    <!-- Results -->
-    <div v-if="results.length" class="results">
-      <h3>{{ resultsTitle }}</h3>
-      <ul class="restaurant-list">
-        <li v-for="(r, idx) in results" :key="idx" class="restaurant-item">
-          <div class="restaurant-header">
-            <strong class="restaurant-name">{{ r.name }}</strong>
-            <span class="rating">{{ r.stars }}★</span>
-          </div>
-          <div class="restaurant-details">
-            <span class="address">{{ r.address }}</span>
-            <span class="categories">{{ r.categories }}</span>
-          </div>
-        </li>
-      </ul>
+    <!-- Results Section -->
+    <div v-if="results.length > 0" class="results-section">
+      <h3 class="results-title">{{ resultsTitle }}</h3>
+      <div class="results-list">
+        <div v-for="restaurant in results" :key="restaurant.name" class="restaurant-card">
+          <h4 class="restaurant-name">{{ restaurant.name }}</h4>
+          <p class="restaurant-address">{{ restaurant.address }}</p>
+          <p class="restaurant-stars">⭐ {{ restaurant.stars }}/5</p>
+          <p class="restaurant-categories">{{ restaurant.categories }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="error" class="error-message">
+      {{ error }}
     </div>
   </div>
 </template>
@@ -104,27 +111,85 @@ const searchByCraving = async () => {
 <style scoped>
 .yelp-search {
   max-width: 600px;
-  margin: 2rem auto;
+  margin: 0 auto;
   padding: 2rem;
   background: white;
 }
 
-.search-section {
+.logo-section {
+  text-align: center;
   margin-bottom: 2rem;
-  padding: 1rem;
-  background: white;
 }
 
-.search-section h3 {
-  margin-top: 0;
-  margin-bottom: 1rem;
+.logo {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+  animation: logoFlip 1.5s ease-out forwards;
+  transform-origin: center;
+}
+
+@keyframes logoFlip {
+  0% {
+    transform: rotateX(90deg) rotateY(90deg) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: rotateX(0deg) rotateY(0deg) scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: rotateX(0deg) rotateY(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+.app-title {
+  font-size: 2.5rem;
+  font-weight: bold;
   color: #07450C;
+  margin: 0 0 0.5rem 0;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  text-transform: uppercase;
+}
+
+.main-heading {
+  font-size: 1.2rem;
+  color: #07450C;
+  margin: 0;
+  font-weight: normal;
+}
+
+.search-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.search-section {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.search-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #07450C;
+  font-weight: bold;
+  text-align: center;
+}
+
+.input-button-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .location-input, .craving-input {
-  width: 70%;
+  width: 60%;
   padding: 0.75rem;
-  margin-right: 0.5rem;
   border: none;
   border-bottom: 2px solid #07450C;
   border-radius: 0;
@@ -147,6 +212,7 @@ const searchByCraving = async () => {
   cursor: pointer;
   font-size: 1rem;
   font-weight: bold;
+  white-space: nowrap;
 }
 
 .search-btn:hover {
@@ -229,5 +295,63 @@ const searchByCraving = async () => {
 h2 {
   color: #07450C;
   text-align: center;
+}
+
+.results-section {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.results-title {
+  color: #07450C;
+  margin-bottom: 1rem;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+.restaurant-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 500px;
+  text-align: left;
+}
+
+.restaurant-name {
+  color: #07450C;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.restaurant-address {
+  color: #07450C;
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.restaurant-stars {
+  color: #07450C;
+  margin: 0.25rem 0;
+  font-weight: bold;
+}
+
+.restaurant-categories {
+  color: #07450C;
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.error-message {
+  color: #07450C;
+  text-align: center;
+  margin-top: 1rem;
 }
 </style>
