@@ -28,3 +28,12 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# Python virtual environments (if any Python tools are used in frontend)
+venv/
+env/
+.venv/
+.env/
+__pycache__/
+*.py[cod]
+*$py.class

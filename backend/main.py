@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # Load data at startup, transition this later to be api calls to a database
-data_path = os.path.join('output', 'yelp_reviews_bow_sentiment.csv')
+data_path = os.path.join('..', 'output', 'yelp_reviews_bow_sentiment.csv')
 df = pd.read_csv(data_path)
 
 # Simple cuisine/occasion keyword lists (expand as needed), this is for initial prototyping, use endpoints to add/remove keywords dynamically
