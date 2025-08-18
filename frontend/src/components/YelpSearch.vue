@@ -150,14 +150,14 @@
                 <span class="detail-value">{{ restaurant.review_count.toLocaleString() }} reviews</span>
               </div>
               
-              <div v-if="restaurant.score" class="detail-item">
-                <span class="detail-label">🎯 Match Score:</span>
-                <span class="detail-value score-highlight">{{ restaurant.score.toFixed(1) }}/100</span>
+              <div v-if="restaurant.overall_score" class="detail-item">
+                <span class="detail-label">🎯 Overall Score:</span>
+                <span class="detail-value score-highlight">{{ restaurant.overall_score.toFixed(2) }}/5</span>
               </div>
               
-              <div v-if="restaurant.similarity_score" class="detail-item">
-                <span class="detail-label">🔍 Similarity:</span>
-                <span class="detail-value">{{ (restaurant.similarity_score * 100).toFixed(1) }}%</span>
+              <div v-if="restaurant.cuisine_match_score" class="detail-item">
+                <span class="detail-label">🍽️ Cuisine Match:</span>
+                <span class="detail-value">{{ (restaurant.cuisine_match_score * 100).toFixed(0) }}%</span>
               </div>
             </div>
             
@@ -177,6 +177,28 @@
             </div>
           </div>
         </div>
+      </div>
+      
+      <!-- Load More Button -->
+      <div v-if="hasMoreResults" class="load-more-section">
+        <button 
+          @click="loadMore" 
+          :disabled="loadMoreLoading"
+          class="load-more-btn"
+        >
+          <span v-if="!loadMoreLoading">
+            Load More Restaurants ({{ filteredResults.length - displayedCount }} remaining)
+          </span>
+          <span v-else>
+            <span class="loading-spinner">⏳</span> Loading...
+          </span>
+        </button>
+        <p class="load-more-hint">Scroll down to auto-load more results</p>
+      </div>
+      
+      <!-- Debug Info (temporary) -->
+      <div class="debug-info">
+        <p>Debug: Total results: {{ results.length }}, Filtered: {{ filteredResults.length }}, Displayed: {{ displayedCount }}, Has more: {{ hasMoreResults }}</p>
       </div>
     </div>
 
@@ -203,7 +225,10 @@ export default {
       selectedPriceRange: '',
       minRating: '0',
       sortBy: 'stars',
-      loading: false
+      loading: false,
+      displayedCount: 25,  // Number of restaurants to show initially (increased from 10)
+      loadMoreLoading: false,  // Loading state for load more button
+      scrollThrottle: null  // Throttle for scroll events
     }
   },
   computed: {
@@ -224,7 +249,7 @@ export default {
     sortedResults() {
       if (!this.filteredResults.length) return []
       
-      return [...this.filteredResults].sort((a, b) => {
+      const sorted = [...this.filteredResults].sort((a, b) => {
         switch (this.sortBy) {
           case 'stars':
             // Sort by stars first, then by review count for tie-breaking
@@ -235,7 +260,7 @@ export default {
           case 'review_count':
             // Sort by review count first, then by stars for tie-breaking
             if (b.review_count !== a.review_count) {
-              return b.review_count - a.review_count
+              return b.review_count - a.stars
             }
             return b.stars - a.stars
           case 'score':
@@ -250,6 +275,13 @@ export default {
             return b.stars - a.stars
         }
       })
+      
+      // Return only the number of restaurants to display
+      return sorted.slice(0, this.displayedCount)
+    },
+    
+    hasMoreResults() {
+      return this.filteredResults.length > this.displayedCount
     }
   },
   methods: {
@@ -258,6 +290,7 @@ export default {
       
       this.loading = true
       this.error = ''
+      this.displayedCount = 25  // Reset to show first 25 results
       
       try {
         const requestData = {
@@ -322,7 +355,52 @@ export default {
         default:
           return 'Rating'
       }
+    },
+
+    async loadMore() {
+      if (this.loadMoreLoading || !this.hasMoreResults) return
+
+      this.loadMoreLoading = true
+      this.error = ''
+
+      try {
+        // Increase the displayed count to show more results
+        this.displayedCount += 10
+        
+        // No need to make another API call since we already have all results
+        // Just show more of what we already have
+        this.loadMoreLoading = false
+      } catch (err) {
+        console.error('Error loading more recommendations:', err)
+        this.error = 'Error loading more recommendations. Please try again.'
+        this.loadMoreLoading = false
+      }
+    },
+
+    handleScroll() {
+      // Throttle scroll events to prevent too many calls
+      if (this.scrollThrottle) return
+      
+      this.scrollThrottle = setTimeout(() => {
+        const { scrollHeight, scrollTop, clientHeight } = document.documentElement
+        const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200 // 200px from bottom
+        
+        if (isNearBottom && this.hasMoreResults && !this.loadMoreLoading) {
+          this.loadMore()
+        }
+        
+        this.scrollThrottle = null
+      }, 100) // Throttle to 100ms
     }
+  },
+  mounted() {
+    // Add scroll event listener for infinite scroll
+    window.addEventListener('scroll', this.handleScroll)
+  },
+  
+  beforeUnmount() {
+    // Clean up scroll event listener
+    window.removeEventListener('scroll', this.handleScroll)
   }
 }
 </script>
@@ -714,5 +792,68 @@ export default {
   color: #07450C;
   text-align: center;
   margin-top: 1rem;
+}
+
+.load-more-section {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.load-more-btn {
+  padding: 0.75rem 1.5rem;
+  background: #07450C;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  background: #0a5a0f;
+}
+
+.load-more-btn:disabled {
+  background: #ccc;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.load-more-hint {
+  color: #07450C;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  opacity: 0.7;
+}
+
+.debug-info {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f0f0f0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 0.9rem;
+  color: #333;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 }
 </style>
