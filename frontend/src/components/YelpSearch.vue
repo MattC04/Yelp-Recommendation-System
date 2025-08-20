@@ -1,13 +1,20 @@
 <template>
   <div class="search-container">
     <!-- Logo and Title Section -->
-    <div class="logo-section">
+    <div class="logo-section" v-if="false">
       <div class="logo">🍽️</div>
       <h1 class="app-title">BELP</h1>
     </div>
 
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <button class="toolbar-btn" @click="showFilters = !showFilters">
+        {{ showFilters ? 'Hide Filters' : 'Show Filters' }}
+      </button>
+    </div>
+
     <!-- Advanced Search Options -->
-    <div class="advanced-options">
+    <div class="advanced-options" v-show="showFilters">
       <div class="options-row">
         <div class="option-group">
           <label class="option-label">Minimum Rating</label>
@@ -246,7 +253,8 @@ export default {
       loading: false,
       displayedCount: 25,  // Number of restaurants to show initially (increased from 10)
       loadMoreLoading: false,  // Loading state for load more button
-      scrollThrottle: null  // Throttle for scroll events
+      scrollThrottle: null,  // Throttle for scroll events
+      showFilters: true // New data property for filter visibility
     }
   },
   computed: {
@@ -541,6 +549,31 @@ export default {
 .search-btn:hover {
   background: #07450C;
   color: white;
+}
+
+.toolbar {
+  margin-bottom: 2rem;
+  text-align: left;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.toolbar-btn {
+  padding: 0.75rem 1.5rem;
+  background: #07450C;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.toolbar-btn:hover {
+  background: #0a5a0f;
 }
 
 .advanced-options {
