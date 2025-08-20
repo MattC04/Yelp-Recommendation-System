@@ -98,8 +98,26 @@
       </div>
     </div>
 
+    <!-- Loading Animation -->
+    <div v-if="loading" class="loading-section" aria-live="polite">
+      <div class="kitchen-loader" role="status" aria-label="Cooking recommendations">
+        <div class="pot">
+          <div class="pot-body"></div>
+          <div class="pot-lip"></div>
+          <div class="spoon"></div>
+          <div class="bubble b1"></div>
+          <div class="bubble b2"></div>
+          <div class="bubble b3"></div>
+        </div>
+        <div class="steam s1"></div>
+        <div class="steam s2"></div>
+        <div class="steam s3"></div>
+      </div>
+      <p class="loading-caption">Cooking up recommendations...</p>
+    </div>
+
     <!-- Results Section -->
-    <div v-if="results.length > 0" class="results-section">
+    <div v-if="!loading && results.length > 0" class="results-section">
       <div class="results-header">
         <h3 class="results-title">{{ resultsTitle }}</h3>
         <div class="results-controls">
@@ -291,6 +309,8 @@ export default {
       this.loading = true
       this.error = ''
       this.displayedCount = 25  // Reset to show first 25 results
+      const startTime = Date.now()
+      const MIN_LOADING_MS = 1200
       
       try {
         const requestData = {
@@ -308,6 +328,10 @@ export default {
         console.error('Error fetching recommendations:', err)
         this.error = 'Error fetching recommendations. Please try again.'
       } finally {
+        const elapsed = Date.now() - startTime
+        if (elapsed < MIN_LOADING_MS) {
+          await new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS - elapsed))
+        }
         this.loading = false
       }
     },
@@ -317,6 +341,8 @@ export default {
       
       this.loading = true
       this.error = ''
+      const startTime = Date.now()
+      const MIN_LOADING_MS = 1200
       
       try {
         const requestData = {
@@ -334,6 +360,10 @@ export default {
         console.error('Error fetching location recommendations:', err)
         this.error = 'Error fetching recommendations. Please try again.'
       } finally {
+        const elapsed = Date.now() - startTime
+        if (elapsed < MIN_LOADING_MS) {
+          await new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS - elapsed))
+        }
         this.loading = false
       }
     },
@@ -570,6 +600,110 @@ export default {
   color: #07450C;
   font-size: 0.9rem;
   min-width: 120px;
+}
+
+/* Loading animation */
+.loading-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+}
+
+.kitchen-loader {
+  position: relative;
+  width: 140px;
+  height: 130px;
+  margin-bottom: 0.75rem;
+}
+
+.pot-body {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 50px;
+  background: rgba(7, 69, 12, 0.08);
+  border: 2px solid #07450C;
+  border-radius: 0 0 12px 12px;
+}
+
+.pot-lip {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 130px;
+  height: 10px;
+  background: #07450C;
+  border-radius: 6px;
+}
+
+.spoon {
+  position: absolute;
+  bottom: 30px;
+  left: 65px;
+  width: 8px;
+  height: 50px;
+  background: #07450C;
+  border-radius: 4px;
+  transform-origin: bottom center;
+  animation: stir 1.4s ease-in-out infinite;
+}
+
+.bubble {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: #74b67a;
+  border-radius: 50%;
+  opacity: 0;
+  animation: bubbleUp 1.4s ease-in-out infinite;
+}
+.bubble.b1 { left: 55%; animation-delay: 0s; }
+.bubble.b2 { left: 45%; animation-delay: 0.25s; }
+.bubble.b3 { left: 50%; animation-delay: 0.5s; }
+
+.steam {
+  position: absolute;
+  bottom: 58px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(7, 69, 12, 0.5);
+  border-radius: 50% 50% 50% 50%;
+  opacity: 0;
+  transform: translateX(-50%);
+  animation: steamRise 1.8s ease-in-out infinite;
+}
+.steam.s1 { left: 40%; animation-delay: 0s; }
+.steam.s2 { left: 50%; animation-delay: 0.3s; }
+.steam.s3 { left: 60%; animation-delay: 0.6s; }
+
+.loading-caption {
+  color: #07450C;
+  font-weight: bold;
+}
+
+@keyframes bubbleUp {
+  0% { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(-50%, -40px) scale(1.1); opacity: 0; }
+}
+
+@keyframes steamRise {
+  0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+  20% { opacity: 0.6; }
+  100% { transform: translate(-50%, -45px) scale(1.2); opacity: 0; }
+}
+
+@keyframes stir {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(12deg); }
 }
 
 .results-section {
@@ -828,22 +962,6 @@ export default {
   margin-right: 0.5rem;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.load-more-hint {
-  color: #07450C;
-  font-size: 0.8rem;
-  margin-top: 0.5rem;
-  opacity: 0.7;
-}
-
 .debug-info {
   margin-top: 2rem;
   padding: 1rem;
@@ -855,5 +973,12 @@ export default {
   max-width: 800px;
   margin-left: auto;
   margin-right: auto;
+}
+
+.load-more-hint {
+  color: #07450C;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  opacity: 0.7;
 }
 </style>
