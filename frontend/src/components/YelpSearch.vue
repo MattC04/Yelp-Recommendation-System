@@ -177,12 +177,24 @@
               
               <div v-if="restaurant.overall_score" class="detail-item">
                 <span class="detail-label">🎯 Overall Score:</span>
-                <span class="detail-value score-highlight">{{ restaurant.overall_score.toFixed(2) }}/5</span>
+                <div class="score-display">
+                  <div class="score-bar-container">
+                    <div class="score-bar" :style="{ width: (restaurant.overall_score / 5 * 100) + '%' }"></div>
+                  </div>
+                  <span class="score-value">{{ restaurant.overall_score.toFixed(2) }}/5</span>
+                  <span class="score-percentage">({{ Math.round(restaurant.overall_score / 5 * 100) }}%)</span>
+                </div>
               </div>
               
               <div v-if="restaurant.cuisine_match_score" class="detail-item">
                 <span class="detail-label">🍽️ Cuisine Match:</span>
-                <span class="detail-value">{{ (restaurant.cuisine_match_score * 100).toFixed(0) }}%</span>
+                <div class="score-display">
+                  <div class="score-bar-container">
+                    <div class="score-bar cuisine-bar" :style="{ width: (restaurant.cuisine_match_score * 100) + '%' }"></div>
+                  </div>
+                  <span class="score-value">{{ (restaurant.cuisine_match_score * 100).toFixed(0) }}%</span>
+                  <span class="score-percentage">({{ restaurant.cuisine_match_score.toFixed(2) }})</span>
+                </div>
               </div>
             </div>
             
@@ -917,6 +929,48 @@ export default {
   flex: 1;
 }
 
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.score-bar-container {
+  flex: 1;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.score-bar {
+  height: 100%;
+  background: linear-gradient(135deg, #07450C, #0a5a0f);
+  border-radius: 4px;
+  transition: width 0.3s ease-in-out;
+}
+
+.score-bar.cuisine-bar {
+  background: linear-gradient(135deg, #007bff, #0056b3);
+}
+
+.score-value {
+  color: #07450C;
+  font-weight: bold;
+  font-size: 0.9rem;
+  min-width: 40px;
+  text-align: right;
+}
+
+.score-percentage {
+  color: #07450C;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  min-width: 60px;
+  text-align: left;
+}
+
 .score-highlight {
   background: linear-gradient(135deg, #07450C, #0a5a0f);
   color: white;
@@ -1182,4 +1236,23 @@ export default {
     padding: 1rem;
   }
 }
+
+/* Responsive adjustments for score display */
+@media (max-width: 768px) {
+  .score-display {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .score-bar-container {
+    width: 100%;
+  }
+  
+  .score-value, .score-percentage {
+    min-width: auto;
+    text-align: left;
+  }
+}
 </style>
+

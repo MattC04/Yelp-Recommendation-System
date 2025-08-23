@@ -337,6 +337,27 @@ def test_location_search(search_term: str):
 		return {"error": str(e)}
 
 
+@app.get("/test/simple")
+def test_simple():
+	"""Simple test endpoint to verify basic functionality"""
+	try:
+		if df.empty:
+			return {"error": "DataFrame is empty", "status": "no_data"}
+		
+		# Just return the first few restaurants
+		sample_data = df.head(5)[['name', 'address', 'stars']].to_dict('records')
+		
+		return {
+			"status": "working",
+			"total_restaurants": len(df),
+			"sample_data": sample_data,
+			"columns": list(df.columns)
+		}
+	except Exception as e:
+		logger.error(f"Simple test failed: {e}")
+		return {"error": str(e), "status": "error"}
+
+
 @app.post("/recommend-by-location", response_model=List[Restaurant])
 def recommend_by_location(req: LocationRecommendRequest):
 	logger.info(f"Location recommendation request received: {req.location}")
