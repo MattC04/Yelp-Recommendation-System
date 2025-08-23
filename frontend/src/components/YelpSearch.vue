@@ -1014,4 +1014,172 @@ export default {
   margin-top: 0.5rem;
   opacity: 0.7;
 }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .search-container {
+    padding: 1rem;
+  }
+  
+  .logo-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .app-title {
+    font-size: 2rem;
+  }
+  
+  .main-heading {
+    font-size: 1rem;
+  }
+  
+  .search-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .input-button-group {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .location-input, .craving-input {
+    width: 100%;
+  }
+  
+  .search-btn {
+    width: 100%;
+    padding: 1rem;
+  }
+  
+  .toolbar {
+    margin-bottom: 1.5rem;
+  }
+  
+  .toolbar-btn {
+    width: 100%;
+    padding: 1rem;
+  }
+  
+  .advanced-options {
+    padding: 1rem;
+  }
+  
+  .options-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .option-group {
+    min-width: auto;
+  }
+  
+  .results-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .results-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .restaurant-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .restaurant-title-section {
+    min-width: auto;
+  }
+  
+  .restaurant-rating {
+    align-items: flex-start;
+    min-width: auto;
+  }
+  
+  .restaurant-details {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .detail-section {
+    min-width: auto;
+  }
+  
+  .restaurant-stats {
+    flex-direction: row;
+    justify-content: space-around;
+    min-width: auto;
+  }
+  
+  .debug-info {
+    font-size: 0.8rem;
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-container {
+    padding: 0.75rem;
+  }
+  
+  .hero-section {
+    padding: 1rem 0;
+  }
+  
+  .app-title {
+    font-size: 1.75rem;
+  }
+  
+  .search-section {
+    margin-bottom: 1rem;
+  }
+  
+  .advanced-options {
+    padding: 0.75rem;
+  }
+  
+  .restaurant-card {
+    padding: 1rem;
+  }
+  
+  .restaurant-name {
+    font-size: 1.2rem;
+  }
+  
+  .detail-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .detail-label {
+    min-width: auto;
+  }
+  
+  .detail-value {
+    text-align: left;
+  }
+  
+  .restaurant-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .stat-item {
+    padding: 0.5rem;
+  }
+  
+  .stat-number {
+    font-size: 1.25rem;
+  }
+  
+  .load-more-btn {
+    width: 100%;
+    padding: 1rem;
+  }
+}
 </style>
