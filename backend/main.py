@@ -249,6 +249,296 @@ def read_root():
 	return {"message": "Yelp Recommendation API is running!"}
 
 
+@app.get("/health")
+def health_check():
+	"""Health check endpoint to verify API and data status"""
+	try:
+		status = {
+			"status": "healthy",
+			"timestamp": pd.Timestamp.now().isoformat(),
+			"data_loaded": not df.empty,
+			"data_shape": df.shape if not df.empty else None,
+			"data_columns": list(df.columns) if not df.empty else [],
+			"nlp_available": NLP_AVAILABLE,
+			"nlp_initialized": nlp_model is not None
+		}
+		logger.info("Health check completed successfully")
+		return status
+	except Exception as e:
+		logger.error(f"Health check failed: {e}")
+		return {
+			"status": "unhealthy",
+			"error": str(e),
+			"timestamp": pd.Timestamp.now().isoformat()
+		}
+
+
+@app.get("/debug/data")
+def debug_data():
+	"""Debug endpoint to inspect data structure and sample values"""
+	try:
+		if df.empty:
+			return {"error": "DataFrame is empty"}
+		
+		# Get sample data from each column
+		sample_data = {}
+		for col in df.columns:
+			if col in ['address', 'city', 'state', 'name', 'categories']:
+				non_null_values = df[col].dropna()
+				if len(non_null_values) > 0:
+					sample_data[col] = {
+						"total_values": len(df[col]),
+						"non_null_values": len(non_null_values),
+						"sample_values": non_null_values.head(10).tolist(),
+						"unique_values": non_null_values.nunique()
+					}
+		
+		return {
+			"data_shape": df.shape,
+			"columns": list(df.columns),
+			"sample_data": sample_data
+		}
+	except Exception as e:
+		logger.error(f"Debug data endpoint failed: {e}")
+		return {"error": str(e)}
+
+
+@app.get("/test/location/{search_term}")
+def test_location_search(search_term: str):
+	"""Test endpoint to see what location search would find"""
+	try:
+		if df.empty:
+			return {"error": "DataFrame is empty"}
+		
+		search_term_lower = search_term.lower()
+		results = {}
+		
+		# Check each possible location column
+		possible_location_columns = ['address', 'city', 'state', 'zip', 'zipcode', 'postal_code', 'location']
+		
+		for col in df.columns:
+			col_lower = col.lower()
+			if any(loc_col in col_lower for loc_col in possible_location_columns):
+				# Check for exact matches
+				exact_matches = df[df[col].astype(str).str.lower().str.contains(search_term_lower, na=False, regex=False)]
+				results[col] = {
+					"exact_matches": len(exact_matches),
+					"sample_values": exact_matches[col].dropna().head(5).tolist() if len(exact_matches) > 0 else [],
+					"all_unique_values": df[col].dropna().unique().tolist()[:20]  # Show first 20 unique values
+				}
+		
+		return {
+			"search_term": search_term,
+			"results": results,
+			"total_restaurants": len(df)
+		}
+	except Exception as e:
+		logger.error(f"Test location search failed: {e}")
+		return {"error": str(e)}
+
+
+@app.post("/recommend-by-location", response_model=List[Restaurant])
+def recommend_by_location(req: LocationRecommendRequest):
+	logger.info(f"Location recommendation request received: {req.location}")
+	
+	try:
+		if df.empty:
+			logger.error("DataFrame is empty - data loading failed")
+			raise HTTPException(status_code=500, detail="Data not loaded")
+		
+		# Convert location to lowercase for case-insensitive search
+		location_query = req.location.lower().strip()
+		logger.info(f"Searching for location: '{location_query}'")
+		
+		# Debug: Show what columns we have
+		logger.info(f"Available columns in DataFrame: {list(df.columns)}")
+		logger.info(f"DataFrame shape: {df.shape}")
+		
+		# Filter restaurants by location (search in address, city, state columns)
+		filtered = df.copy()
+		
+		# Check which location columns exist - be more flexible with column names
+		location_columns = []
+		possible_location_columns = ['address', 'city', 'state', 'zip', 'zipcode', 'postal_code', 'location']
+		
+		for col in df.columns:
+			col_lower = col.lower()
+			if any(loc_col in col_lower for loc_col in possible_location_columns):
+				location_columns.append(col)
+				logger.info(f"Found location column: '{col}' (matches: {[loc_col for loc_col in possible_location_columns if loc_col in col_lower]})")
+		
+		logger.info(f"Location columns found: {location_columns}")
+		
+		if not location_columns:
+			logger.error("No location columns found in data")
+			raise HTTPException(status_code=500, detail="Location data not available")
+		
+		# Debug: Show sample data from location columns
+		for col in location_columns:
+			sample_values = df[col].dropna().head(5).tolist()
+			logger.info(f"Sample values from '{col}' column: {sample_values}")
+		
+		# Create location filter mask with improved search logic
+		location_mask = pd.Series([False] * len(df), index=df.index)
+		
+		for col in location_columns:
+			col_lower = col.lower()
+			
+			# Handle different column types with appropriate search logic
+			if 'zip' in col_lower or 'postal' in col_lower:
+				# ZIP code search - exact match or partial
+				zip_mask = df[col].astype(str).str.lower().str.contains(location_query, na=False, regex=False)
+				location_mask = location_mask | zip_mask
+				logger.info(f"ZIP column '{col}' matches for '{location_query}': {zip_mask.sum()}")
+				
+			elif 'city' in col_lower:
+				# City search - more flexible matching
+				city_mask = df[col].astype(str).str.lower().str.contains(location_query, na=False, regex=False)
+				location_mask = location_mask | city_mask
+				logger.info(f"City column '{col}' matches for '{location_query}': {city_mask.sum()}")
+				
+			elif 'state' in col_lower:
+				# State search - exact or partial matching
+				state_mask = df[col].astype(str).str.lower().str.contains(location_query, na=False, regex=False)
+				location_mask = location_mask | state_mask
+				logger.info(f"State column '{col}' matches for '{location_query}': {state_mask.sum()}")
+				
+			else:
+				# General address/location search
+				general_mask = df[col].astype(str).str.lower().str.contains(location_query, na=False, regex=False)
+				location_mask = location_mask | general_mask
+				logger.info(f"General column '{col}' matches for '{location_query}': {general_mask.sum()}")
+		
+		filtered = filtered[location_mask]
+		logger.info(f"Restaurants found in location '{req.location}': {len(filtered)}")
+		
+		# Debug: Show some sample matches if any found
+		if len(filtered) > 0:
+			sample_matches = filtered[['name', 'address'] + [col for col in ['city', 'state'] if col in filtered.columns]].head(3)
+			logger.info(f"Sample matches: {sample_matches.to_dict('records')}")
+		
+		if len(filtered) == 0:
+			logger.info(f"No restaurants found in location '{req.location}'")
+			# Debug: Try partial matching and show what's available
+			logger.info("Trying partial matching...")
+			partial_matches = []
+			for col in location_columns:
+				# Try first 3 characters for partial matching
+				if len(location_query) >= 3:
+					partial_mask = df[col].astype(str).str.lower().str.contains(location_query[:3], na=False, regex=False)
+					partial_values = df[partial_mask][col].dropna().unique().tolist()
+					partial_matches.extend(partial_values)
+					logger.info(f"Partial matches in '{col}' (first 3 chars): {partial_values[:5]}")
+			
+			# Also show some random samples from each location column
+			logger.info("Random samples from location columns:")
+			for col in location_columns:
+				random_samples = df[col].dropna().sample(min(5, len(df[col].dropna()))).tolist()
+				logger.info(f"Random samples from '{col}': {random_samples}")
+			
+			return []
+		
+		# Apply additional filters if provided
+		if req.dietary_restrictions:
+			logger.info(f"Applying dietary restrictions: {req.dietary_restrictions}")
+			dietary_pattern = '|'.join(req.dietary_restrictions)
+			filtered = filtered[filtered['categories'].str.lower().str.contains(dietary_pattern, na=False)]
+			logger.info(f"Restaurants after dietary filter: {len(filtered)}")
+		
+		if req.ambiance:
+			logger.info(f"Applying ambiance filter: {req.ambiance}")
+			# You can expand this with more sophisticated ambiance matching
+			ambiance_keywords = {
+				'romantic': ['romantic', 'intimate', 'cozy', 'elegant'],
+				'casual': ['casual', 'relaxed', 'comfortable', 'laid-back'],
+				'family-friendly': ['family', 'kids', 'children', 'playful'],
+				'upscale': ['upscale', 'fine dining', 'elegant', 'sophisticated'],
+				'outdoor': ['outdoor', 'patio', 'garden', 'terrace'],
+				'lively': ['lively', 'energetic', 'vibrant', 'bustling']
+			}
+			
+			if req.ambiance in ambiance_keywords:
+				ambiance_pattern = '|'.join(ambiance_keywords[req.ambiance])
+				filtered = filtered[filtered['categories'].str.lower().str.contains(ambiance_pattern, na=False)]
+				logger.info(f"Restaurants after ambiance filter: {len(filtered)}")
+		
+		if req.price_range:
+			logger.info(f"Applying price range filter: {req.price_range}")
+			# You can expand this with actual price data if available
+			price_keywords = {
+				'budget': ['budget', 'cheap', 'affordable', 'inexpensive'],
+				'moderate': ['moderate', 'mid-range', 'reasonable'],
+				'expensive': ['expensive', 'luxury', 'high-end', 'premium']
+			}
+			
+			if req.price_range in price_keywords:
+				price_pattern = '|'.join(price_keywords[req.price_range])
+				filtered = filtered[filtered['categories'].str.lower().str.contains(price_pattern, na=False)]
+				logger.info(f"Restaurants after price filter: {len(filtered)}")
+		
+		# Sort by rating and popularity
+		if 'stars' in filtered.columns and 'review_count' in filtered.columns:
+			filtered = filtered.sort_values(['stars', 'review_count'], ascending=[False, False])
+			logger.info("Sorted by stars and review count")
+		elif 'stars' in filtered.columns:
+			filtered = filtered.sort_values('stars', ascending=False)
+			logger.info("Sorted by stars only")
+		else:
+			logger.warning("No stars column found for sorting")
+		
+		# Apply pagination
+		total_results = len(filtered)
+		start_idx = req.offset
+		end_idx = min(start_idx + req.limit, total_results)
+		paginated_results = filtered.iloc[start_idx:end_idx]
+		
+		logger.info(f"Pagination: total={total_results}, offset={req.offset}, limit={req.limit}, returning={len(paginated_results)}")
+		
+		# Debug: Show what we're about to return
+		if len(paginated_results) > 0:
+			logger.info(f"Sample of results to return:")
+			for idx, (_, row) in enumerate(paginated_results.head(3).iterrows()):
+				logger.info(f"  {idx+1}. {row.get('name', 'Unknown')} - {row.get('address', 'No address')} - {row.get('stars', 'No stars')} stars")
+		else:
+			logger.warning("No results to return after pagination!")
+		
+		# Prepare response
+		results = []
+		for _, row in paginated_results.iterrows():
+			try:
+				restaurant = Restaurant(
+					name=str(row.get('name', 'Unknown')),
+					address=str(row.get('address', 'No address')),
+					stars=float(row.get('stars', 0.0)),
+					categories=str(row.get('categories', 'No categories')),
+					review_count=int(row.get('review_count', 0)),
+					score=float(row.get('stars', 0.0)),  # Use stars as base score for location search
+					similarity_score=0.0,  # Not applicable for location search
+					overall_score=float(row.get('stars', 0.0)),  # Use stars as overall score
+					semantic_score=0.0,
+					tfidf_score=0.0,
+					keyword_score=0.0,
+					rating_score=float(row.get('stars', 0.0)) / 5.0,
+					popularity_score=float(row.get('review_count', 0)) / max(filtered['review_count'].max(), 1) if 'review_count' in filtered.columns else 0.0
+				)
+				results.append(restaurant)
+				logger.info(f"Created restaurant object: {restaurant.name}")
+			except Exception as e:
+				logger.warning(f"Error creating restaurant from row: {e}")
+				logger.warning(f"Row data: {row.to_dict()}")
+				continue
+		
+		logger.info(f"Successfully created {len(results)} restaurant objects")
+		logger.info(f"Successfully returned {len(results)} restaurants for location '{req.location}'")
+		return results
+		
+	except Exception as e:
+		logger.error(f"Error in recommend-by-location endpoint: {str(e)}")
+		logger.error(f"DataFrame columns: {list(df.columns) if not df.empty else 'Empty'}")
+		logger.error(f"DataFrame shape: {df.shape}")
+		raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @app.post("/recommend", response_model=List[Restaurant])
 def recommend(req: RecommendRequest):
 	logger.info(f"Recommendation request received: {req.query}")
