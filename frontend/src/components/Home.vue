@@ -70,14 +70,6 @@
             Share your own discoveries and build lists.
           </p>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">📱</div>
-          <h3 class="feature-title">Always Accessible</h3>
-          <p class="feature-description">
-            Use BELP on any device. Responsive design ensures a great experience 
-            whether you're on desktop, tablet, or mobile.
-          </p>
-        </div>
       </div>
     </div>
 
@@ -128,14 +120,6 @@
         <div class="stat-item">
           <div class="stat-number">1M+</div>
           <div class="stat-label">Reviews</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">100K+</div>
-          <div class="stat-label">Happy Users</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">95%</div>
-          <div class="stat-label">Satisfaction</div>
         </div>
       </div>
     </div>
