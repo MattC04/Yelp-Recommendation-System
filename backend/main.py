@@ -218,6 +218,15 @@ class RecommendRequest(BaseModel):
 	weight_popularity: float = 0.05
 
 
+class LocationRecommendRequest(BaseModel):
+	location: str
+	dietary_restrictions: Optional[List[str]] = []
+	ambiance: Optional[str] = None
+	price_range: Optional[str] = None
+	offset: int = 0
+	limit: int = 25
+
+
 class Restaurant(BaseModel):
 	name: str
 	address: str
