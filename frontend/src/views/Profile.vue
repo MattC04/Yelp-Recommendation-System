@@ -101,8 +101,114 @@
               </div>
             </div>
             <p class="review-text">{{ review.text }}</p>
+            <div class="review-meta">
+              <span class="meta-item">
+                <span class="meta-icon">🕐</span>
+                {{ review.visitTime }} ({{ review.visitDay }})
+              </span>
+              <span class="meta-item">
+                <span class="meta-icon">🍽️</span>
+                {{ review.foodType }}
+              </span>
+              <span class="meta-item">
+                <span class="meta-icon">💰</span>
+                {{ review.priceRange }}
+              </span>
+            </div>
             <div class="review-tags">
               <span v-for="tag in review.tags" :key="tag" class="review-tag">{{ tag }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Learning Insights -->
+      <div class="profile-section">
+        <h2 class="section-title">🧠 Your Dining Patterns</h2>
+        <div class="insights-grid">
+          <!-- Time Preferences -->
+          <div class="insight-card">
+            <h3 class="insight-title">⏰ Time Preferences</h3>
+            <div class="insight-content">
+              <div v-for="(count, time) in timePreferences" :key="time" class="preference-item">
+                <span class="preference-label">{{ formatTime(time) }}</span>
+                <div class="preference-bar">
+                  <div class="preference-fill" :style="{ width: (count / maxTimeCount * 100) + '%' }"></div>
+                </div>
+                <span class="preference-count">{{ count }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Day Preferences -->
+          <div class="insight-card">
+            <h3 class="insight-title">📅 Day Preferences</h3>
+            <div class="insight-content">
+              <div v-for="(count, day) in dayPreferences" :key="day" class="preference-item">
+                <span class="preference-label">{{ day }}</span>
+                <div class="preference-bar">
+                  <div class="preference-fill" :style="{ width: (count / maxDayCount * 100) + '%' }"></div>
+                </div>
+                <span class="preference-count">{{ count }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cuisine Preferences -->
+          <div class="insight-card">
+            <h3 class="insight-title">🍕 Cuisine Preferences</h3>
+            <div class="insight-content">
+              <div v-for="(count, cuisine) in cuisinePreferences" :key="cuisine" class="preference-item">
+                <span class="preference-label">{{ cuisine }}</span>
+                <div class="preference-bar">
+                  <div class="preference-fill" :style="{ width: (count / maxCuisineCount * 100) + '%' }"></div>
+                </div>
+                <span class="preference-count">{{ count }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rating Patterns -->
+          <div class="insight-card">
+            <h3 class="insight-title">⭐ Rating Patterns</h3>
+            <div class="insight-content">
+              <div v-for="(count, rating) in ratingPatterns" :key="rating" class="preference-item">
+                <span class="preference-label">{{ rating }} Stars</span>
+                <div class="preference-bar">
+                  <div class="preference-fill" :style="{ width: (count / maxRatingCount * 100) + '%' }"></div>
+                </div>
+                <span class="preference-count">{{ count }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Smart Recommendations -->
+      <div class="profile-section">
+        <h2 class="section-title">🎯 Smart Recommendations</h2>
+        <div class="recommendations-grid">
+          <div class="recommendation-card">
+            <h3 class="rec-title">Based on Your Patterns</h3>
+            <div class="rec-content">
+              <p class="rec-text">You love <strong>{{ topCuisine }}</strong> on <strong>{{ topDay }}</strong> for <strong>{{ topTime }}</strong></p>
+              <p class="rec-suggestion">Try exploring more {{ topCuisine }} restaurants during these times!</p>
+            </div>
+          </div>
+          
+          <div class="recommendation-card">
+            <h3 class="rec-title">Hidden Gems</h3>
+            <div class="rec-content">
+              <p class="rec-text">You've rated <strong>{{ topCuisine }}</strong> restaurants highly</p>
+              <p class="rec-suggestion">Discover new {{ topCuisine }} spots in your area</p>
+            </div>
+          </div>
+          
+          <div class="recommendation-card">
+            <h3 class="rec-title">Try Something New</h3>
+            <div class="rec-content">
+              <p class="rec-text">You haven't explored <strong>{{ unexploredCuisine }}</strong> much</p>
+              <p class="rec-suggestion">Expand your palate with {{ unexploredCuisine }} cuisine</p>
             </div>
           </div>
         </div>
@@ -186,7 +292,15 @@ export default {
           rating: 5,
           date: '2 days ago',
           text: 'Amazing pizza! The crust was perfectly crispy and the toppings were fresh.',
-          tags: ['Great Service', 'Fresh Ingredients', 'Cozy Atmosphere']
+          tags: ['Great Service', 'Fresh Ingredients', 'Cozy Atmosphere'],
+          visitTime: 'dinner',
+          visitDay: 'Friday',
+          foodType: 'Italian',
+          cuisine: 'Pizza',
+          priceRange: 'moderate',
+          ambiance: 'casual',
+          visitDate: '2024-01-12',
+          visitHour: 19
         },
         {
           id: 2,
@@ -194,7 +308,111 @@ export default {
           rating: 4,
           date: '1 week ago',
           text: 'Fresh sushi and quick service. Would definitely recommend!',
-          tags: ['Fresh Fish', 'Quick Service']
+          tags: ['Fresh Fish', 'Quick Service'],
+          visitTime: 'lunch',
+          visitDay: 'Tuesday',
+          foodType: 'Japanese',
+          cuisine: 'Sushi',
+          priceRange: 'moderate',
+          ambiance: 'casual',
+          visitDate: '2024-01-05',
+          visitHour: 12
+        },
+        {
+          id: 3,
+          restaurantName: 'Sunrise Diner',
+          rating: 5,
+          date: '3 days ago',
+          text: 'Best breakfast in town! The pancakes are fluffy and the coffee is perfect.',
+          tags: ['Breakfast', 'Coffee', 'Friendly Staff'],
+          visitTime: 'breakfast',
+          visitDay: 'Saturday',
+          foodType: 'American',
+          cuisine: 'Breakfast',
+          priceRange: 'budget',
+          ambiance: 'casual',
+          visitDate: '2024-01-10',
+          visitHour: 8
+        },
+        {
+          id: 4,
+          restaurantName: 'Taco Fiesta',
+          rating: 4,
+          date: '2 weeks ago',
+          text: 'Authentic Mexican flavors and great margaritas!',
+          tags: ['Authentic', 'Margaritas', 'Spicy'],
+          visitTime: 'dinner',
+          visitDay: 'Wednesday',
+          foodType: 'Mexican',
+          cuisine: 'Tacos',
+          priceRange: 'budget',
+          ambiance: 'lively',
+          visitDate: '2023-12-28',
+          visitHour: 20
+        },
+        {
+          id: 5,
+          restaurantName: 'Golden Dragon',
+          rating: 3,
+          date: '1 month ago',
+          text: 'Good Chinese food but service was slow.',
+          tags: ['Chinese', 'Slow Service'],
+          visitTime: 'lunch',
+          visitDay: 'Monday',
+          foodType: 'Chinese',
+          cuisine: 'Asian',
+          priceRange: 'budget',
+          ambiance: 'casual',
+          visitDate: '2023-12-15',
+          visitHour: 13
+        },
+        {
+          id: 6,
+          restaurantName: 'Rooftop Lounge',
+          rating: 5,
+          date: '1 week ago',
+          text: 'Incredible rooftop views and craft cocktails!',
+          tags: ['Rooftop', 'Cocktails', 'Romantic'],
+          visitTime: 'dinner',
+          visitDay: 'Friday',
+          foodType: 'American',
+          cuisine: 'Bar Food',
+          priceRange: 'expensive',
+          ambiance: 'romantic',
+          visitDate: '2024-01-05',
+          visitHour: 21
+        },
+        {
+          id: 7,
+          restaurantName: 'Farm Fresh Market',
+          rating: 4,
+          date: '2 weeks ago',
+          text: 'Healthy options and organic ingredients. Great for brunch!',
+          tags: ['Healthy', 'Organic', 'Brunch'],
+          visitTime: 'brunch',
+          visitDay: 'Sunday',
+          foodType: 'American',
+          cuisine: 'Healthy',
+          priceRange: 'moderate',
+          ambiance: 'casual',
+          visitDate: '2023-12-31',
+          visitHour: 11
+        },
+        {
+          id: 8,
+          restaurantName: 'Midnight Bites',
+          rating: 4,
+          date: '3 weeks ago',
+          text: 'Perfect late-night food! The burgers hit the spot.',
+          tags: ['Late Night', 'Burgers', 'Quick'],
+          visitTime: 'late-night',
+          visitDay: 'Saturday',
+          foodType: 'American',
+          cuisine: 'Burgers',
+          priceRange: 'budget',
+          ambiance: 'casual',
+          visitDate: '2023-12-23',
+          visitHour: 2
         }
       ],
       favoriteRestaurants: [
@@ -224,7 +442,100 @@ export default {
       }
     }
   },
+  computed: {
+    // Analyze time preferences
+    timePreferences() {
+      const timeCounts = {}
+      this.recentReviews.forEach(review => {
+        const time = review.visitTime
+        timeCounts[time] = (timeCounts[time] || 0) + 1
+      })
+      return timeCounts
+    },
+    
+    // Analyze day preferences
+    dayPreferences() {
+      const dayCounts = {}
+      this.recentReviews.forEach(review => {
+        const day = review.visitDay
+        dayCounts[day] = (dayCounts[day] || 0) + 1
+      })
+      return dayCounts
+    },
+    
+    // Analyze cuisine preferences
+    cuisinePreferences() {
+      const cuisineCounts = {}
+      this.recentReviews.forEach(review => {
+        const cuisine = review.foodType
+        cuisineCounts[cuisine] = (cuisineCounts[cuisine] || 0) + 1
+      })
+      return cuisineCounts
+    },
+    
+    // Analyze rating patterns
+    ratingPatterns() {
+      const ratingCounts = {}
+      this.recentReviews.forEach(review => {
+        const rating = review.rating
+        ratingCounts[rating] = (ratingCounts[rating] || 0) + 1
+      })
+      return ratingCounts
+    },
+    
+    // Get max counts for normalization
+    maxTimeCount() {
+      return Math.max(...Object.values(this.timePreferences))
+    },
+    
+    maxDayCount() {
+      return Math.max(...Object.values(this.dayPreferences))
+    },
+    
+    maxCuisineCount() {
+      return Math.max(...Object.values(this.cuisinePreferences))
+    },
+    
+    maxRatingCount() {
+      return Math.max(...Object.values(this.ratingPatterns))
+    },
+    
+    // Get top preferences
+    topCuisine() {
+      const cuisines = Object.entries(this.cuisinePreferences)
+      return cuisines.sort((a, b) => b[1] - a[1])[0]?.[0] || 'Various'
+    },
+    
+    topDay() {
+      const days = Object.entries(this.dayPreferences)
+      return days.sort((a, b) => b[1] - a[1])[0]?.[0] || 'Various'
+    },
+    
+    topTime() {
+      const times = Object.entries(this.timePreferences)
+      return times.sort((a, b) => b[1] - a[1])[0]?.[0] || 'Various'
+    },
+    
+    // Find unexplored cuisines
+    unexploredCuisine() {
+      const allCuisines = ['Italian', 'Mexican', 'Chinese', 'Japanese', 'Indian', 'Thai', 'Mediterranean', 'American', 'French', 'Greek']
+      const exploredCuisines = Object.keys(this.cuisinePreferences)
+      const unexplored = allCuisines.filter(cuisine => !exploredCuisines.includes(cuisine))
+      return unexplored[0] || 'International'
+    }
+  },
   methods: {
+    formatTime(time) {
+      const timeMap = {
+        'breakfast': 'Breakfast (6AM-11AM)',
+        'brunch': 'Brunch (10AM-2PM)',
+        'lunch': 'Lunch (11AM-3PM)',
+        'dinner': 'Dinner (5PM-9PM)',
+        'late-night': 'Late Night (9PM-2AM)'
+      }
+      return timeMap[time] || time
+    },
+    
     toggleCuisine(cuisineName) {
       const cuisine = this.cuisines.find(c => c.name === cuisineName)
       if (cuisine) {
@@ -467,6 +778,26 @@ export default {
   line-height: 1.5;
 }
 
+.review-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  color: #07450C;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.meta-icon {
+  font-size: 1rem;
+}
+
 .review-tags {
   display: flex;
   flex-wrap: wrap;
@@ -480,6 +811,108 @@ export default {
   border-radius: 12px;
   font-size: 0.8rem;
   font-weight: 500;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.insight-card {
+  background: rgba(7, 69, 12, 0.05);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(7, 69, 12, 0.1);
+}
+
+.insight-title {
+  color: #07450C;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.insight-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.preference-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.preference-label {
+  font-size: 0.9rem;
+  color: #07450C;
+  opacity: 0.8;
+  margin-bottom: 0.5rem;
+}
+
+.preference-bar {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.preference-fill {
+  height: 100%;
+  background: #07450C;
+  border-radius: 4px;
+  transition: width 0.3s ease-in-out;
+}
+
+.preference-count {
+  font-size: 0.8rem;
+  color: #07450C;
+  opacity: 0.7;
+}
+
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.recommendation-card {
+  background: rgba(7, 69, 12, 0.05);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(7, 69, 12, 0.1);
+}
+
+.rec-title {
+  color: #07450C;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rec-content {
+  color: #07450C;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.rec-text {
+  margin-bottom: 0.75rem;
+}
+
+.rec-suggestion {
+  font-style: italic;
+  color: #07450C;
+  opacity: 0.8;
 }
 
 .favorites-grid {
@@ -642,6 +1075,31 @@ export default {
   
   .cuisine-tags {
     justify-content: center;
+  }
+
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .recommendations-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .review-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .insight-content {
+    gap: 0.75rem;
+  }
+  
+  .preference-item {
+    align-items: center;
+  }
+  
+  .preference-label {
+    text-align: center;
   }
 }
 </style> 
