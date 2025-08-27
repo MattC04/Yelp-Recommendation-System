@@ -1,11 +1,45 @@
 // Social Service for managing social features
 class SocialService {
   constructor() {
-    // Initialize with sample data
-    this.posts = this.getInitialPosts()
-    this.lists = this.getInitialLists()
-    this.users = this.getInitialUsers()
-    this.trends = this.getInitialTrends()
+    // Initialize with sample data or load from storage
+    const persisted = this.loadFromStorage()
+    if (persisted) {
+      this.posts = persisted.posts
+      this.lists = persisted.lists
+      this.users = persisted.users
+      this.trends = persisted.trends
+    } else {
+      this.posts = this.getInitialPosts()
+      this.lists = this.getInitialLists()
+      this.users = this.getInitialUsers()
+      this.trends = this.getInitialTrends()
+      this.saveToStorage()
+    }
+  }
+
+  // Storage helpers
+  saveToStorage() {
+    try {
+      const payload = {
+        posts: this.posts,
+        lists: this.lists,
+        users: this.users,
+        trends: this.trends
+      }
+      localStorage.setItem('belp_social', JSON.stringify(payload))
+    } catch (e) {
+      // ignore storage errors
+    }
+  }
+
+  loadFromStorage() {
+    try {
+      const raw = localStorage.getItem('belp_social')
+      if (!raw) return null
+      return JSON.parse(raw)
+    } catch (e) {
+      return null
+    }
   }
 
   // Get initial sample posts
@@ -24,8 +58,12 @@ class SocialService {
           rating: 5,
           cuisine: 'Italian'
         },
+        imageUrls: [],
         likes: 24,
-        comments: 8,
+        comments: [
+          { id: 101, userName: 'Taco Lover', text: 'Looks amazing! 😍', timeAgo: '1h' },
+          { id: 102, userName: 'Chef Mike', text: 'Pasta perfection!', timeAgo: '45m' }
+        ],
         isLiked: false,
         isFollowing: true,
         timestamp: Date.now() - (2 * 60 * 60 * 1000)
@@ -38,8 +76,9 @@ class SocialService {
         timeAgo: '4 hours ago',
         text: 'Made my own sushi tonight! 🍣 Not as good as the pros, but pretty proud of the result.',
         restaurant: null,
+        imageUrls: ['https://via.placeholder.com/300x200/07450C/ffffff?text=Sushi'],
         likes: 18,
-        comments: 12,
+        comments: [],
         isLiked: true,
         isFollowing: false,
         timestamp: Date.now() - (4 * 60 * 60 * 1000)
@@ -57,49 +96,12 @@ class SocialService {
           rating: 4,
           cuisine: 'Mexican'
         },
+        imageUrls: [],
         likes: 31,
-        comments: 15,
+        comments: [],
         isLiked: false,
         isFollowing: false,
         timestamp: Date.now() - (6 * 60 * 60 * 1000)
-      },
-      {
-        id: 4,
-        userId: 4,
-        userName: 'Pizza Master',
-        userAvatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=P',
-        timeAgo: '1 day ago',
-        text: 'Pizza night with friends! 🍕 Nothing beats a good wood-fired pizza with fresh ingredients.',
-        restaurant: {
-          name: 'Pizza Palace',
-          image: 'https://via.placeholder.com/80x60/07450C/ffffff?text=PP',
-          rating: 5,
-          cuisine: 'Italian'
-        },
-        likes: 42,
-        comments: 18,
-        isLiked: false,
-        isFollowing: true,
-        timestamp: Date.now() - (24 * 60 * 60 * 1000)
-      },
-      {
-        id: 5,
-        userId: 5,
-        userName: 'Sushi Explorer',
-        userAvatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=S',
-        timeAgo: '2 days ago',
-        text: 'Omakase experience at Sakura! 🍣 The chef\'s selection was mind-blowing. Worth every penny!',
-        restaurant: {
-          name: 'Sakura Sushi',
-          image: 'https://via.placeholder.com/80x60/07450C/ffffff?text=SS',
-          rating: 5,
-          cuisine: 'Japanese'
-        },
-        likes: 67,
-        comments: 23,
-        isLiked: true,
-        isFollowing: false,
-        timestamp: Date.now() - (2 * 24 * 60 * 60 * 1000)
       }
     ]
   }
@@ -172,24 +174,6 @@ class SocialService {
         following: 123,
         posts: 31,
         isFollowing: false
-      },
-      {
-        id: 4,
-        name: 'Pizza Master',
-        avatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=P',
-        followers: 78,
-        following: 34,
-        posts: 12,
-        isFollowing: true
-      },
-      {
-        id: 5,
-        name: 'Sushi Explorer',
-        avatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=S',
-        followers: 189,
-        following: 67,
-        posts: 28,
-        isFollowing: false
       }
     ]
   }
@@ -223,33 +207,6 @@ class SocialService {
         posts: 67,
         engagement: '1.2K',
         isJoined: false
-      },
-      {
-        id: 4,
-        icon: '🍣',
-        title: 'Sushi Sunday',
-        description: 'Weekend sushi adventures',
-        posts: 45,
-        engagement: '890',
-        isJoined: false
-      },
-      {
-        id: 5,
-        icon: '☕',
-        title: 'Coffee Culture',
-        description: 'Best coffee shops and brews',
-        posts: 123,
-        engagement: '1.8K',
-        isJoined: false
-      },
-      {
-        id: 6,
-        icon: '🍰',
-        title: 'Dessert Dreams',
-        description: 'Sweet treats and pastry perfection',
-        posts: 78,
-        engagement: '1.1K',
-        isJoined: true
       }
     ]
   }
@@ -279,22 +236,28 @@ class SocialService {
   getPosts(filter = 'all') {
     this.updateTimestamps()
     
+    let result = this.posts.slice()
     switch (filter) {
       case 'following':
-        return this.posts.filter(post => post.isFollowing)
+        result = result.filter(post => post.isFollowing)
+        break
       case 'trending':
-        return this.posts.filter(post => post.likes > 20)
+        result = result.filter(post => post.likes > 20)
+        break
       case 'reviews':
-        return this.posts.filter(post => post.restaurant)
+        result = result.filter(post => post.restaurant)
+        break
       case 'recent':
-        return this.posts.sort((a, b) => b.timestamp - a.timestamp)
+        result = result.sort((a, b) => b.timestamp - a.timestamp)
+        break
       default:
-        return this.posts
+        break
     }
+    return result
   }
 
   // Create a new post
-  createPost(text, restaurant = null) {
+  createPost(text, restaurant = null, imageUrls = []) {
     const newPost = {
       id: Date.now(),
       userId: 0, // Current user
@@ -303,15 +266,32 @@ class SocialService {
       timeAgo: 'Just now',
       text: text,
       restaurant: restaurant,
+      imageUrls: imageUrls,
       likes: 0,
-      comments: 0,
+      comments: [],
       isLiked: false,
       isFollowing: false,
       timestamp: Date.now()
     }
     
     this.posts.unshift(newPost)
+    this.saveToStorage()
     return newPost
+  }
+
+  // Add a comment to a post
+  addComment(postId, userName, text) {
+    const post = this.posts.find(p => p.id === postId)
+    if (!post) return null
+    const comment = {
+      id: Date.now(),
+      userName,
+      text,
+      timeAgo: 'Just now'
+    }
+    post.comments.unshift(comment)
+    this.saveToStorage()
+    return comment
   }
 
   // Like/unlike a post
@@ -320,6 +300,7 @@ class SocialService {
     if (post) {
       post.isLiked = !post.isLiked
       post.likes += post.isLiked ? 1 : -1
+      this.saveToStorage()
       return post
     }
     return null
@@ -331,14 +312,13 @@ class SocialService {
     if (user) {
       user.isFollowing = !user.isFollowing
       user.followers += user.isFollowing ? 1 : -1
-      
       // Update all posts from this user
       this.posts.forEach(post => {
         if (post.userId === userId) {
           post.isFollowing = user.isFollowing
         }
       })
-      
+      this.saveToStorage()
       return user
     }
     return null
@@ -359,12 +339,14 @@ class SocialService {
     }
     
     this.lists.unshift(newList)
+    this.saveToStorage()
     return newList
   }
 
   // Delete a list
   deleteList(listId) {
     this.lists = this.lists.filter(list => list.id !== listId)
+    this.saveToStorage()
     return true
   }
 
@@ -374,6 +356,7 @@ class SocialService {
     if (trend) {
       trend.isJoined = !trend.isJoined
       trend.posts += trend.isJoined ? 1 : -1
+      this.saveToStorage()
       return trend
     }
     return null
@@ -411,8 +394,10 @@ class SocialService {
     
     // Search posts
     this.posts.forEach(post => {
-      if (post.text.toLowerCase().includes(lowercaseQuery) ||
-          (post.restaurant && post.restaurant.name.toLowerCase().includes(lowercaseQuery))) {
+      if (
+        post.text.toLowerCase().includes(lowercaseQuery) ||
+        (post.restaurant && post.restaurant.name.toLowerCase().includes(lowercaseQuery))
+      ) {
         results.push({
           ...post,
           type: 'post'
@@ -432,8 +417,10 @@ class SocialService {
     
     // Search lists
     this.lists.forEach(list => {
-      if (list.name.toLowerCase().includes(lowercaseQuery) ||
-          list.description.toLowerCase().includes(lowercaseQuery)) {
+      if (
+        list.name.toLowerCase().includes(lowercaseQuery) ||
+        list.description.toLowerCase().includes(lowercaseQuery)
+      ) {
         results.push({
           ...list,
           type: 'list'
@@ -442,10 +429,12 @@ class SocialService {
     })
     
     // Sort results by relevance (posts first, then users, then lists)
-    return results.sort((a, b) => {
-      const typeOrder = { post: 0, user: 1, list: 2 }
-      return typeOrder[a.type] - typeOrder[b.type]
-    }).slice(0, 10) // Limit to 10 results
+    return results
+      .sort((a, b) => {
+        const typeOrder = { post: 0, user: 1, list: 2 }
+        return typeOrder[a.type] - typeOrder[b.type]
+      })
+      .slice(0, 10) // Limit to 10 results
   }
 
   // Get user profile

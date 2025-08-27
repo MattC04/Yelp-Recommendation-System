@@ -19,14 +19,24 @@
           />
           <span class="char-count">{{ quickShareText.length }}/280</span>
         </div>
+        
+        <!-- Image attachments -->
+        <div class="attachments-row">
+          <input ref="fileInput" type="file" accept="image/*" multiple @change="onFilesSelected" class="hidden-input" />
+          <div class="attachment-actions">
+            <button @click="triggerFilePicker" class="action-btn photo-btn">📷 Add Photos</button>
+            <button @click="addLocation" class="action-btn location-btn">📍 Add Location</button>
+          </div>
+          <div v-if="quickSharePreviews.length" class="preview-grid">
+            <div v-for="(src, i) in quickSharePreviews" :key="i" class="preview-item">
+              <img :src="src" alt="preview" />
+              <button class="remove-preview" @click="removePreview(i)">✖</button>
+            </div>
+          </div>
+        </div>
+
         <div class="share-actions">
-          <button @click="addPhoto" class="action-btn photo-btn">
-            📷 Add Photo
-          </button>
-          <button @click="addLocation" class="action-btn location-btn">
-            📍 Add Location
-          </button>
-          <button @click="postQuickShare" class="action-btn post-btn" :disabled="!quickShareText.trim()">
+          <button @click="postQuickShare" class="action-btn post-btn" :disabled="!quickShareText.trim() && quickSharePreviews.length === 0">
             Post
           </button>
         </div>
@@ -115,11 +125,9 @@
             type="text" 
             placeholder="Search posts, users, or restaurants..."
             class="search-input"
-            @input="performSearch"
+            @input="onSearchInput"
           />
-          <button @click="performSearch" class="search-btn">
-            🔍
-          </button>
+          <button @click="performSearch" class="search-btn">🔍</button>
         </div>
         <div v-if="searchResults.length > 0" class="search-results" :class="{ active: searchResults.length > 0 }">
           <h4>Search Results ({{ searchResults.length }})</h4>
@@ -136,6 +144,7 @@
             </div>
           </div>
         </div>
+        <div v-else-if="searchQuery && !searchResults.length" class="empty-results">No results found</div>
       </div>
       
       <div class="feed-filters">
@@ -160,26 +169,25 @@
               </div>
             </div>
             <div class="post-actions">
-              <button @click="followUser(post.userId)" class="follow-btn" v-if="!post.isFollowing">
-                Follow
-              </button>
-              <button @click="unfollowUser(post.userId)" class="following-btn" v-else>
-                Following
-              </button>
+              <button @click="followUser(post.userId)" class="follow-btn" v-if="!post.isFollowing">Follow</button>
+              <button @click="unfollowUser(post.userId)" class="following-btn" v-else>Following</button>
             </div>
           </div>
           
           <div class="post-content">
             <p class="post-text">{{ post.text }}</p>
+            
+            <div v-if="post.imageUrls && post.imageUrls.length" class="post-images">
+              <img v-for="(img, idx) in post.imageUrls" :key="idx" :src="img" class="post-image" @error="onImageError(post, idx)" />
+            </div>
+
             <div v-if="post.restaurant" class="post-restaurant">
               <img :src="post.restaurant.image" :alt="post.restaurant.name" class="restaurant-image" />
               <div class="restaurant-info">
                 <h5 class="restaurant-name">{{ post.restaurant.name }}</h5>
                 <div class="restaurant-rating">
                   <span class="stars">
-                    <span v-for="i in 5" :key="i" class="star">
-                      {{ i <= post.restaurant.rating ? '★' : '☆' }}
-                    </span>
+                    <span v-for="i in 5" :key="i" class="star">{{ i <= post.restaurant.rating ? '★' : '☆' }}</span>
                   </span>
                   <span class="rating-text">{{ post.restaurant.rating }}/5</span>
                 </div>
@@ -193,14 +201,30 @@
               <span class="action-icon">{{ post.isLiked ? '❤️' : '🤍' }}</span>
               {{ post.likes }}
             </button>
-            <button @click="commentPost(post.id)" class="action-btn">
+            <button @click="toggleComments(post.id)" class="action-btn">
               <span class="action-icon">💬</span>
-              {{ post.comments }}
+              {{ post.comments?.length || 0 }}
             </button>
             <button @click="sharePost(post.id)" class="action-btn">
               <span class="action-icon">📤</span>
               Share
             </button>
+          </div>
+
+          <!-- Comments Drawer -->
+          <div v-if="isCommentsOpen(post.id)" class="comments-drawer">
+            <div class="comments-list" v-if="post.comments && post.comments.length">
+              <div v-for="c in post.comments" :key="c.id" class="comment-item">
+                <span class="comment-user">{{ c.userName }}</span>
+                <span class="comment-text">{{ c.text }}</span>
+                <span class="comment-time">{{ c.timeAgo }}</span>
+              </div>
+            </div>
+            <div v-else class="no-comments">No comments yet. Be the first!</div>
+            <div class="add-comment">
+              <input v-model="newCommentText" type="text" placeholder="Add a comment..." />
+              <button @click="addComment(post.id)" :disabled="!newCommentText.trim()">Post</button>
+            </div>
           </div>
         </div>
       </div>
@@ -267,6 +291,8 @@ export default {
   data() {
     return {
       quickShareText: '',
+      quickSharePreviews: [],
+      quickShareFiles: [],
       newListName: '',
       newListDescription: '',
       newListPrivacy: 'public',
@@ -286,10 +312,14 @@ export default {
         { id: 'all', name: 'All Posts', icon: '📱' },
         { id: 'following', name: 'Following', icon: '👥' },
         { id: 'trending', name: 'Trending', icon: '🔥' },
-        { id: 'reviews', name: 'Reviews', icon: '⭐' }
+        { id: 'reviews', name: 'Reviews', icon: '⭐' },
+        { id: 'recent', name: 'Most Recent', icon: '🕒' }
       ],
       searchQuery: '',
-      searchResults: []
+      searchResults: [],
+      searchTimer: null,
+      openCommentsId: null,
+      newCommentText: ''
     }
   },
   computed: {
@@ -305,15 +335,33 @@ export default {
       this.userLists = socialService.lists
       this.socialFeed = socialService.posts
       this.trendingTopics = socialService.trends
-      this.userRecommendations = socialService.userRecommendations // Load user recommendations
+      this.userRecommendations = socialService.getUserRecommendations()
     },
     
     // Quick Share Methods
+    triggerFilePicker() {
+      this.$refs.fileInput.click()
+    },
+    onFilesSelected(e) {
+      const files = Array.from(e.target.files || [])
+      files.forEach(file => {
+        const objectUrl = URL.createObjectURL(file)
+        this.quickSharePreviews.push(objectUrl)
+      })
+      this.quickShareFiles.push(...files)
+      e.target.value = ''
+    },
+    removePreview(index) {
+      const url = this.quickSharePreviews[index]
+      if (url && url.startsWith('blob:')) {
+        try { URL.revokeObjectURL(url) } catch (_) {}
+      }
+      this.quickSharePreviews.splice(index, 1)
+      this.quickShareFiles.splice(index, 1)
+    },
+    
     addPhoto() {
-      this.showMessage = true
-      this.messageText = 'Photo upload feature coming soon!'
-      this.messageType = 'info'
-      this.messageIcon = '📷'
+      this.triggerFilePicker()
     },
     
     addLocation() {
@@ -323,18 +371,32 @@ export default {
       this.messageIcon = '📍'
     },
     
-    postQuickShare() {
-      if (this.quickShareText.trim()) {
-        // Create post using social service
-        const newPost = socialService.createPost(this.quickShareText)
-        this.socialFeed.unshift(newPost)
-        this.quickShareText = ''
-        
-        this.showMessage = true
-        this.messageText = 'Your post has been shared!'
-        this.messageType = 'success'
-        this.messageIcon = '✅'
+    async postQuickShare() {
+      if (!this.quickShareText.trim() && this.quickSharePreviews.length === 0) return
+      // If files are present, convert to data URLs for persistence
+      let imageUrls = []
+      if (this.quickShareFiles.length) {
+        const readers = this.quickShareFiles.map(file => new Promise(resolve => {
+          const fr = new FileReader()
+          fr.onload = e => resolve(e.target.result)
+          fr.readAsDataURL(file)
+        }))
+        imageUrls = await Promise.all(readers)
+      } else {
+        // If no files, fall back to any URLs in previews (e.g., pasted URLs)
+        imageUrls = this.quickSharePreviews.slice()
       }
+      const newPost = socialService.createPost(this.quickShareText, null, imageUrls)
+      this.socialFeed.unshift(newPost)
+      this.quickShareText = ''
+      // Revoke any blob URLs from previews to avoid leaks
+      this.quickSharePreviews.forEach(url => { if (url && url.startsWith('blob:')) { try { URL.revokeObjectURL(url) } catch (_) {} } })
+      this.quickSharePreviews = []
+      this.quickShareFiles = []
+      this.showMessage = true
+      this.messageText = 'Your post has been shared!'
+      this.messageType = 'success'
+      this.messageIcon = '✅'
     },
     
     // List Methods
@@ -365,11 +427,20 @@ export default {
       this.messageIcon = '✏️'
     },
     
-    shareList(list) {
-      this.showMessage = true
-      this.messageText = `Sharing "${list.name}"... Feature coming soon!`
-      this.messageType = 'info'
-      this.messageIcon = '📤'
+    async shareList(list) {
+      const url = `${window.location.origin}/share?list=${encodeURIComponent(list.id)}`
+      try {
+        await navigator.clipboard.writeText(url)
+        this.showMessage = true
+        this.messageText = 'List link copied to clipboard!'
+        this.messageType = 'success'
+        this.messageIcon = '📋'
+      } catch (_) {
+        this.showMessage = true
+        this.messageText = 'Unable to copy link.'
+        this.messageType = 'error'
+        this.messageIcon = '⚠️'
+      }
     },
     
     deleteList(listId) {
@@ -417,18 +488,43 @@ export default {
       }
     },
     
-    commentPost(postId) {
-      this.showMessage = true
-      this.messageText = 'Comment feature coming soon!'
-      this.messageType = 'info'
-      this.messageIcon = '💬'
+    // Comments
+    toggleComments(postId) {
+      this.openCommentsId = this.openCommentsId === postId ? null : postId
+      this.newCommentText = ''
+    },
+    isCommentsOpen(postId) {
+      return this.openCommentsId === postId
+    },
+    addComment(postId) {
+      if (!this.newCommentText.trim()) return
+      socialService.addComment(postId, 'You', this.newCommentText.trim())
+      this.newCommentText = ''
+      this.loadData()
+    },
+
+    // Share post
+    async sharePost(postId) {
+      const url = `${window.location.origin}/share?post=${encodeURIComponent(postId)}`
+      try {
+        await navigator.clipboard.writeText(url)
+        this.showMessage = true
+        this.messageText = 'Post link copied to clipboard!'
+        this.messageType = 'success'
+        this.messageIcon = '📋'
+      } catch (_) {
+        this.showMessage = true
+        this.messageText = 'Unable to copy link.'
+        this.messageType = 'error'
+        this.messageIcon = '⚠️'
+      }
     },
     
-    sharePost(postId) {
-      this.showMessage = true
-      this.messageText = 'Post sharing feature coming soon!'
-      this.messageType = 'info'
-      this.messageIcon = '📤'
+    onImageError(post, idx) {
+      // Replace broken image with a small placeholder
+      if (post && post.imageUrls && post.imageUrls[idx]) {
+        post.imageUrls.splice(idx, 1, 'https://via.placeholder.com/300x200/cccccc/000000?text=Image+unavailable')
+      }
     },
     
     // Trending Methods
@@ -436,29 +532,20 @@ export default {
       const updatedTrend = socialService.toggleTrend(trendId)
       if (updatedTrend) {
         this.showMessage = true
-        this.messageText = updatedTrend.isJoined ? 
-          'You have joined this trending topic!' : 
-          'You have left this trending topic.'
+        this.messageText = updatedTrend.isJoined ? 'You have joined this trending topic!' : 'You have left this trending topic.'
         this.messageType = 'success'
         this.messageIcon = updatedTrend.isJoined ? '🔥' : '👋'
         this.loadData() // Refresh data
       }
     },
     
-    // Utility Methods
-    getPrivacyIcon(privacy) {
-      const icons = {
-        public: '🌍',
-        friends: '👥',
-        private: '🔒'
-      }
-      return icons[privacy] || '🌍'
+    // Search
+    onSearchInput() {
+      if (this.searchTimer) clearTimeout(this.searchTimer)
+      this.searchTimer = setTimeout(() => {
+        this.performSearch()
+      }, 300)
     },
-    
-    hideMessage() {
-      this.showMessage = false
-    },
-
     performSearch() {
       if (this.searchQuery.trim()) {
         this.searchResults = socialService.search(this.searchQuery)
@@ -467,15 +554,13 @@ export default {
       }
     },
 
-    getResultType(result) {
-      if (result.type === 'post') {
-        return 'Post'
-      } else if (result.type === 'user') {
-        return 'User'
-      } else if (result.type === 'list') {
-        return 'List'
-      }
-      return 'Item'
+    // Utility Methods
+    getPrivacyIcon(privacy) {
+      const icons = { public: '🌍', friends: '👥', private: '🔒' }
+      return icons[privacy] || '🌍'
+    },
+    hideMessage() {
+      this.showMessage = false
     }
   }
 }
@@ -1342,6 +1427,30 @@ export default {
   font-size: 0.8rem;
   opacity: 0.7;
 }
+
+/* Additional styles for new features */
+.hidden-input { display: none; }
+.attachments-row { display: flex; flex-direction: column; gap: 0.75rem; }
+.attachment-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; }
+.preview-item { position: relative; }
+.preview-item img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; background: #f0f0f0; }
+.remove-preview { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; }
+
+.post-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-top: 0.5rem; }
+.post-image { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; background: #f0f0f0; }
+
+.comments-drawer { background: rgba(7,69,12,0.05); border: 1px solid rgba(7,69,12,0.1); border-radius: 8px; padding: 0.75rem; margin-top: 0.75rem; }
+.comments-list { display: grid; gap: 0.5rem; margin-bottom: 0.5rem; }
+.comment-item { display: flex; gap: 0.5rem; align-items: baseline; color: #07450C; }
+.comment-user { font-weight: 700; }
+.comment-text { opacity: 0.9; }
+.comment-time { margin-left: auto; opacity: 0.6; font-size: 0.85rem; }
+.add-comment { display: flex; gap: 0.5rem; }
+.add-comment input { flex: 1; padding: 0.5rem 0.75rem; border: 2px solid rgba(7,69,12,0.2); border-radius: 8px; color: #07450C; }
+.add-comment button { padding: 0.5rem 0.75rem; background: #07450C; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+
+.empty-results { margin-top: 0.5rem; color: #07450C; opacity: 0.7; font-style: italic; }
 
 /* Responsive Design */
 @media (max-width: 768px) {
