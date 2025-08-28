@@ -3,6 +3,7 @@
 // Output: { restaurants: ranked[], explanations: Map<restaurantId, string[]> }
 
 import socialService from '@/services/socialService.js'
+import feedbackService from '@/services/feedbackService.js'
 
 function getUserSignals() {
   const liked = socialService.posts.filter(p => p.isLiked)
@@ -55,12 +56,12 @@ function normalizeCounts(counts) {
 }
 
 function extractRestaurantCuisine(restaurant) {
-  // Tries multiple fields commonly seen
-  // categories: array of { title } or strings; cuisine field; tags
   if (restaurant.cuisine) return [String(restaurant.cuisine).toLowerCase()]
   if (Array.isArray(restaurant.categories)) {
     return restaurant.categories
-      .map(c => (typeof c === 'string' ? c : (c?.title || c?.alias || '')))
+      .toString()
+      .split(',')
+      .map(s => s.trim())
       .filter(Boolean)
       .map(s => String(s).toLowerCase())
   }
@@ -70,22 +71,27 @@ function extractRestaurantCuisine(restaurant) {
   return []
 }
 
-function scoreRestaurant(r, userPref, contextNow) {
+function scoreRestaurant(r, userPref, contextNow, feedbackWeights) {
   const explanations = []
   let score = 0
 
-  // Cuisine match
+  // Cuisine match (social signals)
   const cuisines = extractRestaurantCuisine(r)
   let cuisineBoost = 0
+  let negHit = false
   cuisines.forEach(c => {
-    const w = userPref.cuisine[c] || 0
-    cuisineBoost = Math.max(cuisineBoost, w)
+    const pos = userPref.cuisine[c] || 0
+    const neg = feedbackWeights.cuisineNeg[c] || 0
+    const net = Math.max(0, pos - 0.7 * neg) // downweight if negative feedback exists
+    cuisineBoost = Math.max(cuisineBoost, net)
+    if (neg > 0.05) negHit = true
   })
   if (cuisineBoost > 0) {
     score += 0.6 * cuisineBoost
     const top = cuisines.find(c => userPref.cuisine[c])
     if (top) explanations.push(`Matches your taste for ${capitalize(top)}`)
   }
+  if (negHit) explanations.push('De-emphasized cuisines you marked as not interested')
 
   // Time-of-day preference
   const mealNow = hourToMeal(contextNow.getHours())
@@ -96,13 +102,13 @@ function scoreRestaurant(r, userPref, contextNow) {
   }
 
   // Recency/popularity proxy if provided
-  if (typeof r.rating === 'number') {
-    score += 0.1 * (r.rating / 5)
-  }
-  if (typeof r.review_count === 'number') {
-    const pop = Math.min(1, r.review_count / 500)
-    score += 0.05 * pop
-  }
+  if (typeof r.rating === 'number') score += 0.1 * (r.rating / 5)
+  if (typeof r.review_count === 'number') score += 0.05 * Math.min(1, r.review_count / 500)
+
+  // CTR/session context multipliers
+  const ctrFactor = 1 + Math.min(0.15, (feedbackWeights.ctr || 0) * 0.3)
+  const sessionFactor = feedbackWeights.sessionBoost || 1.0
+  score *= ctrFactor * sessionFactor
 
   return { score, explanations }
 }
@@ -114,11 +120,12 @@ export function scoreAndExplain(restaurants, context = {}) {
   const signals = getUserSignals()
   const cuisineNorm = normalizeCounts(signals.cuisineCounts)
   const timeNorm = normalizeCounts(signals.timeCounts)
-
   const userPref = { cuisine: cuisineNorm, time: timeNorm }
 
+  const feedbackWeights = feedbackService.getWeights(now.getTime())
+
   const scored = restaurants.map(r => {
-    const { score, explanations } = scoreRestaurant(r, userPref, now)
+    const { score, explanations } = scoreRestaurant(r, userPref, now, feedbackWeights)
     return { r, score, explanations }
   })
 
@@ -128,7 +135,7 @@ export function scoreAndExplain(restaurants, context = {}) {
   const explanationsMap = new Map()
   ranked.forEach(item => explanationsMap.set(item.id || item.name, item._aiWhy))
 
-  return { restaurants: ranked, explanations: explanationsMap }
+  return { restaurants: ranked, explanations: explanationsMap, variant: feedbackWeights.variant }
 }
 
 export default { scoreAndExplain } 

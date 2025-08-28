@@ -130,25 +130,21 @@
         <div class="results-controls">
           <label class="sort-label">Sort by:</label>
           <select v-model="sortBy" @change="sortResults" class="sort-select">
+            <option value="score">AI Score (Best Match)</option>
             <option value="stars">Rating (Highest First)</option>
             <option value="review_count">Popularity (Most Reviews)</option>
-            <option value="score">Best Match</option>
           </select>
           <span class="sort-indicator">Currently: {{ getSortLabel() }}</span>
-          <label class="ai-toggle">
-            <input type="checkbox" v-model="aiBoost" />
-            <span>AI Boost</span>
-          </label>
         </div>
       </div>
 
       <div class="results-list">
-        <div v-for="restaurant in sortedResults" :key="restaurant.name" class="restaurant-card">
+        <div v-for="restaurant in sortedResults" :key="restaurant.name" class="restaurant-card" @mouseenter="recordView(restaurant)" @click.capture="recordClick(restaurant)">
           <div class="restaurant-header">
             <div class="restaurant-title-section">
               <h4 class="restaurant-name">{{ restaurant.name }}</h4>
               <div class="restaurant-categories">{{ restaurant.categories }}</div>
-              <div v-if="aiBoost && restaurant._aiWhy && restaurant._aiWhy.length" class="ai-badges">
+              <div v-if="restaurant._aiWhy && restaurant._aiWhy.length" class="ai-badges">
                 <span v-for="(why, idx) in restaurant._aiWhy.slice(0, 2)" :key="idx" class="ai-badge">🤖 {{ why }}</span>
               </div>
             </div>
@@ -214,9 +210,9 @@
                 <div class="stat-number">{{ restaurant.review_count.toLocaleString() }}</div>
                 <div class="stat-label">Reviews</div>
               </div>
-              <div v-if="restaurant.score" class="stat-item">
-                <div class="stat-number">{{ restaurant.score.toFixed(0) }}</div>
-                <div class="stat-label">Score</div>
+              <div class="stat-item feedback-actions">
+                <button class="feedback-btn pos" @click.stop="markPositive(restaurant)">More like this</button>
+                <button class="feedback-btn neg" @click.stop="markNegative(restaurant)">Not interested</button>
               </div>
             </div>
           </div>
@@ -255,6 +251,7 @@
 <script>
 import axios from 'axios'
 import aiRecommender from '@/services/aiRecommender.js'
+import feedbackService from '@/services/feedbackService.js'
 
 export default {
   name: 'YelpSearch',
@@ -269,41 +266,31 @@ export default {
       selectedAmbiance: '',
       selectedPriceRange: '',
       minRating: '0',
-      sortBy: 'stars',
+      sortBy: 'score',
       loading: false,
-      displayedCount: 25,  // Number of restaurants to show initially (increased from 10)
-      loadMoreLoading: false,  // Loading state for load more button
-      scrollThrottle: null,  // Throttle for scroll events
-      showFilters: true, // New data property for filter visibility
-      aiBoost: false
+      displayedCount: 25,
+      loadMoreLoading: false,
+      scrollThrottle: null,
+      showFilters: true
     }
   },
   computed: {
     filteredResults() {
       if (!this.results.length) return []
-      
       let filtered = [...this.results]
-      
-      // Filter by minimum rating
       if (this.minRating !== '0') {
         const minRatingNum = parseInt(this.minRating)
         filtered = filtered.filter(restaurant => restaurant.stars >= minRatingNum)
       }
-      
       return filtered
     },
-    
     aiProcessedResults() {
-      if (!this.aiBoost) return this.filteredResults
       const { restaurants } = aiRecommender.scoreAndExplain(this.filteredResults, { now: new Date() })
-      // Expose AI score in generic 'score' field for sorting UI
       return restaurants.map(r => ({ ...r, score: Math.round((r._aiScore || 0) * 100) }))
     },
-    
     sortedResults() {
-      const base = this.aiBoost ? this.aiProcessedResults : this.filteredResults
+      const base = this.aiProcessedResults
       if (!base.length) return []
-      
       const sorted = [...base].sort((a, b) => {
         switch (this.sortBy) {
           case 'stars':
@@ -320,29 +307,20 @@ export default {
             return b.stars - a.stars
         }
       })
-      
       return sorted.slice(0, this.displayedCount)
     },
-    
     hasMoreResults() {
       return this.filteredResults.length > this.displayedCount
-    }
-  },
-  watch: {
-    aiBoost(newVal) {
-      if (newVal) this.sortBy = 'score'
     }
   },
   methods: {
     async searchByCraving() {
       if (!this.query.trim()) return
-      
       this.loading = true
       this.error = ''
-      this.displayedCount = 25  // Reset to show first 25 results
+      this.displayedCount = 25
       const startTime = Date.now()
       const MIN_LOADING_MS = 1200
-      
       try {
         const requestData = {
           query: this.query,
@@ -350,11 +328,10 @@ export default {
           ambiance: this.selectedAmbiance || null,
           price_range: this.selectedPriceRange || null
         }
-        
         const res = await axios.post('http://localhost:8000/recommend', requestData)
         this.results = res.data
         this.resultsTitle = `Results for "${this.query}"`
-        this.sortBy = this.aiBoost ? 'score' : 'stars'
+        this.sortBy = 'score'
       } catch (err) {
         console.error('Error fetching recommendations:', err)
         this.error = 'Error fetching recommendations. Please try again.'
@@ -369,12 +346,10 @@ export default {
 
     async searchByLocation() {
       if (!this.location.trim()) return
-      
       this.loading = true
       this.error = ''
       const startTime = Date.now()
       const MIN_LOADING_MS = 1200
-      
       try {
         const requestData = {
           location: this.location,
@@ -382,11 +357,10 @@ export default {
           ambiance: this.selectedAmbiance || null,
           price_range: this.selectedPriceRange || null
         }
-        
         const res = await axios.post('http://localhost:8000/recommend-by-location', requestData)
         this.results = res.data
         this.resultsTitle = `Restaurants in ${this.location}`
-        this.sortBy = this.aiBoost ? 'score' : 'stars'
+        this.sortBy = 'score'
       } catch (err) {
         console.error('Error fetching location recommendations:', err)
         this.error = 'Error fetching recommendations. Please try again.'
@@ -401,9 +375,7 @@ export default {
 
     sortResults() {
       this.$forceUpdate()
-      console.log('Sorting by:', this.sortBy)
     },
-    
     getSortLabel() {
       switch (this.sortBy) {
         case 'stars':
@@ -411,18 +383,15 @@ export default {
         case 'review_count':
           return 'Popularity'
         case 'score':
-          return this.aiBoost ? 'AI Score' : 'Best Match'
+          return 'AI Score'
         default:
-          return 'Rating'
+          return 'AI Score'
       }
     },
-
     async loadMore() {
       if (this.loadMoreLoading || !this.hasMoreResults) return
-
       this.loadMoreLoading = true
       this.error = ''
-
       try {
         this.displayedCount += 10
         this.loadMoreLoading = false
@@ -432,26 +401,39 @@ export default {
         this.loadMoreLoading = false
       }
     },
-
     handleScroll() {
       if (this.scrollThrottle) return
-      
       this.scrollThrottle = setTimeout(() => {
         const { scrollHeight, scrollTop, clientHeight } = document.documentElement
         const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200
-        
         if (isNearBottom && this.hasMoreResults && !this.loadMoreLoading) {
           this.loadMore()
         }
-        
         this.scrollThrottle = null
       }, 100)
+    },
+    recordView(restaurant) {
+      const cuisine = String(restaurant.categories || restaurant.cuisine || '').toString()
+      feedbackService.recordView({ restaurantName: restaurant.name, cuisine })
+    },
+    recordClick(restaurant) {
+      const cuisine = String(restaurant.categories || restaurant.cuisine || '').toString()
+      feedbackService.recordClick({ restaurantName: restaurant.name, cuisine })
+    },
+    markPositive(restaurant) {
+      const cuisine = String(restaurant.categories || restaurant.cuisine || '').toString()
+      feedbackService.recordPositive({ restaurantName: restaurant.name, cuisine })
+      this.$forceUpdate()
+    },
+    markNegative(restaurant) {
+      const cuisine = String(restaurant.categories || restaurant.cuisine || '').toString()
+      feedbackService.recordNegative({ restaurantName: restaurant.name, cuisine })
+      this.$forceUpdate()
     }
   },
   mounted() {
     window.addEventListener('scroll', this.handleScroll)
   },
-  
   beforeUnmount() {
     window.removeEventListener('scroll', this.handleScroll)
   }
@@ -1284,6 +1266,42 @@ export default {
   padding: 0.15rem 0.4rem;
   border-radius: 999px;
   font-size: 0.8rem;
+}
+
+.feedback-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.feedback-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: bold;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.feedback-btn.pos {
+  background: #4CAF50; /* Green */
+  color: white;
+}
+
+.feedback-btn.pos:hover {
+  background: #388E3C; /* Darker Green */
+}
+
+.feedback-btn.neg {
+  background: #F44336; /* Red */
+  color: white;
+}
+
+.feedback-btn.neg:hover {
+  background: #D32F2F; /* Darker Red */
 }
 </style>
 
