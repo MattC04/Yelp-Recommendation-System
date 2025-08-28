@@ -8,11 +8,19 @@ class SocialService {
       this.lists = persisted.lists
       this.users = persisted.users
       this.trends = persisted.trends
+      // Seed demo signals if none exist
+      const hasSignals = (this.posts || []).some(p => p.isLiked || p.isBookmarked)
+      if (!hasSignals) {
+        this.posts = this.posts.concat(this.getDemoSignalPosts())
+        this.saveToStorage()
+      }
     } else {
       this.posts = this.getInitialPosts()
       this.lists = this.getInitialLists()
       this.users = this.getInitialUsers()
       this.trends = this.getInitialTrends()
+      // Also add demo signals to enrich preferences
+      this.posts = this.posts.concat(this.getDemoSignalPosts())
       this.saveToStorage()
     }
   }
@@ -271,12 +279,54 @@ class SocialService {
       comments: [],
       isLiked: false,
       isFollowing: false,
+      isBookmarked: false,
       timestamp: Date.now()
     }
     
     this.posts.unshift(newPost)
     this.saveToStorage()
     return newPost
+  }
+
+  // Edit a post (only current user's posts)
+  updatePost(postId, updates) {
+    const post = this.posts.find(p => p.id === postId)
+    if (!post || post.userId !== 0) return null
+    const allowed = ['text', 'imageUrls', 'restaurant']
+    allowed.forEach(key => {
+      if (key in updates) post[key] = updates[key]
+    })
+    this.saveToStorage()
+    return post
+  }
+
+  // Delete a post (only current user's posts)
+  deletePost(postId) {
+    const post = this.posts.find(p => p.id === postId)
+    if (!post || post.userId !== 0) return false
+    this.posts = this.posts.filter(p => p.id !== postId)
+    this.saveToStorage()
+    return true
+  }
+
+  // Bookmark toggle
+  toggleBookmark(postId) {
+    const post = this.posts.find(p => p.id === postId)
+    if (!post) return null
+    post.isBookmarked = !post.isBookmarked
+    this.saveToStorage()
+    return post
+  }
+
+  // Add restaurant to a list
+  addRestaurantToList(listId, restaurantName) {
+    const list = this.lists.find(l => l.id === listId)
+    if (!list) return null
+    if (!list.restaurants.includes(restaurantName)) {
+      list.restaurants.unshift(restaurantName)
+    }
+    this.saveToStorage()
+    return list
   }
 
   // Add a comment to a post
@@ -448,6 +498,110 @@ class SocialService {
       }
     }
     return null
+  }
+
+  // Demo signal generator for AI recommender
+  getDemoSignalPosts() {
+    const now = new Date()
+    const mkTs = (hOffsetHours) => now.getTime() - hOffsetHours * 60 * 60 * 1000
+    return [
+      {
+        id: Number(`${Date.now()}001`),
+        userId: 99,
+        userName: 'Demo User',
+        userAvatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=D',
+        timeAgo: 'recently',
+        text: 'Friday night pasta craving satisfied. 🍝',
+        restaurant: { name: 'Roma Trattoria', image: 'https://via.placeholder.com/80x60/07450C/ffffff?text=RT', rating: 5, cuisine: 'Italian' },
+        imageUrls: [],
+        likes: 5,
+        comments: [],
+        isLiked: true,
+        isFollowing: false,
+        isBookmarked: true,
+        timestamp: mkTs(20) // dinner yesterday
+      },
+      {
+        id: Number(`${Date.now()}002`),
+        userId: 98,
+        userName: 'Demo User',
+        userAvatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=D',
+        timeAgo: 'today',
+        text: 'Light and fresh sushi lunch set. 🍣',
+        restaurant: { name: 'Sakura Bento', image: 'https://via.placeholder.com/80x60/07450C/ffffff?text=SB', rating: 4, cuisine: 'Japanese' },
+        imageUrls: [],
+        likes: 3,
+        comments: [],
+        isLiked: true,
+        isFollowing: false,
+        isBookmarked: false,
+        timestamp: mkTs(3) // lunch
+      },
+      {
+        id: Number(`${Date.now()}003`),
+        userId: 97,
+        userName: 'Demo User',
+        userAvatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=D',
+        timeAgo: 'recently',
+        text: 'Street tacos hit different late at night. 🌮',
+        restaurant: { name: 'La Calle Taqueria', image: 'https://via.placeholder.com/80x60/07450C/ffffff?text=LT', rating: 4, cuisine: 'Mexican' },
+        imageUrls: [],
+        likes: 7,
+        comments: [],
+        isLiked: false,
+        isFollowing: false,
+        isBookmarked: true,
+        timestamp: mkTs(30) // late night previous day
+      },
+      {
+        id: Number(`${Date.now()}004`),
+        userId: 96,
+        userName: 'Demo User',
+        userAvatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=D',
+        timeAgo: 'this week',
+        text: 'Sunday brunch pancakes and coffee. 🥞☕',
+        restaurant: { name: 'Sunrise Cafe', image: 'https://via.placeholder.com/80x60/07450C/ffffff?text=SC', rating: 5, cuisine: 'American' },
+        imageUrls: [],
+        likes: 2,
+        comments: [],
+        isLiked: true,
+        isFollowing: false,
+        isBookmarked: false,
+        timestamp: mkTs(120) // brunch earlier this week
+      },
+      {
+        id: Number(`${Date.now()}005`),
+        userId: 95,
+        userName: 'Demo User',
+        userAvatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=D',
+        timeAgo: 'recently',
+        text: 'Spicy vindaloo for dinner. 🔥',
+        restaurant: { name: 'Bombay Spice', image: 'https://via.placeholder.com/80x60/07450C/ffffff?text=BS', rating: 4, cuisine: 'Indian' },
+        imageUrls: [],
+        likes: 6,
+        comments: [],
+        isLiked: true,
+        isFollowing: false,
+        isBookmarked: true,
+        timestamp: mkTs(44) // dinner 2 days ago
+      },
+      {
+        id: Number(`${Date.now()}006`),
+        userId: 94,
+        userName: 'Demo User',
+        userAvatar: 'https://via.placeholder.com/40x40/07450C/ffffff?text=D',
+        timeAgo: 'today',
+        text: 'Thai basil chicken lunch bowl. 🥗',
+        restaurant: { name: 'Bangkok Bowl', image: 'https://via.placeholder.com/80x60/07450C/ffffff?text=BB', rating: 4, cuisine: 'Thai' },
+        imageUrls: [],
+        likes: 1,
+        comments: [],
+        isLiked: true,
+        isFollowing: false,
+        isBookmarked: false,
+        timestamp: mkTs(5) // lunch/afternoon today
+      }
+    ]
   }
 }
 

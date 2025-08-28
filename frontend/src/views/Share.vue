@@ -175,7 +175,14 @@
           </div>
           
           <div class="post-content">
-            <p class="post-text">{{ post.text }}</p>
+            <p class="post-text" v-if="!isEditing(post.id)">{{ post.text }}</p>
+            <div v-else class="edit-post">
+              <textarea v-model="editBuffer" rows="3" />
+              <div class="edit-actions">
+                <button @click="saveEdit(post.id)" class="edit-save">Save</button>
+                <button @click="cancelEdit()" class="edit-cancel">Cancel</button>
+              </div>
+            </div>
             
             <div v-if="post.imageUrls && post.imageUrls.length" class="post-images">
               <img v-for="(img, idx) in post.imageUrls" :key="idx" :src="img" class="post-image" @error="onImageError(post, idx)" />
@@ -192,6 +199,13 @@
                   <span class="rating-text">{{ post.restaurant.rating }}/5</span>
                 </div>
                 <p class="restaurant-cuisine">{{ post.restaurant.cuisine }}</p>
+                <div class="restaurant-actions">
+                  <select v-model="selectedListId">
+                    <option disabled value="">Add to list…</option>
+                    <option v-for="l in userLists" :key="l.id" :value="l.id">{{ l.name }}</option>
+                  </select>
+                  <button @click="addRestaurantToList(post.restaurant.name)" :disabled="!selectedListId">Add</button>
+                </div>
               </div>
             </div>
           </div>
@@ -205,10 +219,24 @@
               <span class="action-icon">💬</span>
               {{ post.comments?.length || 0 }}
             </button>
-            <button @click="sharePost(post.id)" class="action-btn">
-              <span class="action-icon">📤</span>
+            <button @click="sharePostNative(post.id)" class="action-btn">
+              <span class="action-icon">🔗</span>
               Share
             </button>
+            <button @click="toggleBookmark(post.id)" class="action-btn" :class="{ bookmarked: post.isBookmarked }">
+              <span class="action-icon">{{ post.isBookmarked ? '🔖' : '🏷️' }}</span>
+              {{ post.isBookmarked ? 'Saved' : 'Save' }}
+            </button>
+            <template v-if="post.userId === 0">
+              <button @click="startEdit(post)" class="action-btn">
+                <span class="action-icon">✏️</span>
+                Edit
+              </button>
+              <button @click="deletePost(post.id)" class="action-btn delete">
+                <span class="action-icon">🗑️</span>
+                Delete
+              </button>
+            </template>
           </div>
 
           <!-- Comments Drawer -->
@@ -319,7 +347,10 @@ export default {
       searchResults: [],
       searchTimer: null,
       openCommentsId: null,
-      newCommentText: ''
+      newCommentText: '',
+      editBuffer: '', // New for editing
+      isEditingPostId: null, // New for editing
+      selectedListId: '', // New for adding restaurant to list
     }
   },
   computed: {
@@ -519,7 +550,113 @@ export default {
         this.messageIcon = '⚠️'
       }
     },
-    
+
+    // Native Share
+    async sharePostNative(postId) {
+      const post = this.socialFeed.find(p => p.id === postId);
+      if (!post) return;
+
+      const text = post.text;
+      const url = `${window.location.origin}/share?post=${encodeURIComponent(postId)}`;
+      const title = post.userName;
+      const image = post.imageUrls && post.imageUrls.length > 0 ? post.imageUrls[0] : null;
+
+      try {
+        await navigator.share({
+          title: title,
+          text: text,
+          url: url,
+          ...(image ? { image: image } : {})
+        });
+        this.showMessage = true;
+        this.messageText = 'Post shared successfully!';
+        this.messageType = 'success';
+        this.messageIcon = '🔗';
+      } catch (error) {
+        this.showMessage = true;
+        this.messageText = 'Unable to share post.';
+        this.messageType = 'error';
+        this.messageIcon = '⚠️';
+        console.error('Error sharing post:', error);
+      }
+    },
+
+    // Bookmark
+    toggleBookmark(postId) {
+      const updatedPost = socialService.toggleBookmark(postId);
+      if (updatedPost) {
+        this.loadData(); // Refresh data
+        this.showMessage = true;
+        this.messageText = updatedPost.isBookmarked ? 'Post saved!' : 'Post removed from saved.';
+        this.messageType = updatedPost.isBookmarked ? 'success' : 'info';
+        this.messageIcon = updatedPost.isBookmarked ? '🔖' : '🏷️';
+      }
+    },
+
+    // Edit/Delete
+    startEdit(post) {
+      this.isEditingPostId = post.id;
+      this.editBuffer = post.text;
+    },
+    cancelEdit() {
+      this.isEditingPostId = null;
+      this.editBuffer = '';
+    },
+    async saveEdit(postId) {
+      if (!this.editBuffer.trim()) {
+        this.showMessage = true;
+        this.messageText = 'Post text cannot be empty.';
+        this.messageType = 'error';
+        this.messageIcon = '⚠️';
+        return;
+      }
+      const updatedPost = socialService.updatePost(postId, this.editBuffer);
+      if (updatedPost) {
+        this.isEditingPostId = null;
+        this.editBuffer = '';
+        this.loadData(); // Refresh data
+        this.showMessage = true;
+        this.messageText = 'Post updated successfully!';
+        this.messageType = 'success';
+        this.messageIcon = '✅';
+      }
+    },
+    deletePost(postId) {
+      if (confirm('Are you sure you want to delete this post?')) {
+        socialService.deletePost(postId);
+        this.socialFeed = this.socialFeed.filter(post => post.id !== postId);
+        this.showMessage = true;
+        this.messageText = 'Post deleted successfully!';
+        this.messageType = 'success';
+        this.messageIcon = '🗑️';
+      }
+    },
+
+    // Add Restaurant to List
+    addRestaurantToList(restaurantName) {
+      if (!this.selectedListId) {
+        this.showMessage = true;
+        this.messageText = 'Please select a list to add this restaurant to.';
+        this.messageType = 'error';
+        this.messageIcon = '⚠️';
+        return;
+      }
+      const list = this.userLists.find(l => l.id === this.selectedListId);
+      if (list) {
+        socialService.addRestaurantToList(this.selectedListId, restaurantName);
+        this.showMessage = true;
+        this.messageText = `${restaurantName} added to ${list.name}!`;
+        this.messageType = 'success';
+        this.messageIcon = '🍽️';
+      } else {
+        this.showMessage = true;
+        this.messageText = 'List not found.';
+        this.messageType = 'error';
+        this.messageIcon = '⚠️';
+      }
+      this.selectedListId = ''; // Clear selected list
+    },
+
     onImageError(post, idx) {
       // Replace broken image with a small placeholder
       if (post && post.imageUrls && post.imageUrls[idx]) {
@@ -561,6 +698,9 @@ export default {
     },
     hideMessage() {
       this.showMessage = false
+    },
+    isEditing(postId) {
+      return this.isEditingPostId === postId;
     }
   }
 }
@@ -1069,6 +1209,44 @@ export default {
   font-size: 0.8rem;
   opacity: 0.7;
   margin-top: 0.25rem;
+}
+
+.restaurant-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.restaurant-actions select {
+  padding: 0.5rem;
+  border: 2px solid rgba(7, 69, 12, 0.2);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #07450C;
+  background: white;
+  min-width: 150px;
+}
+
+.restaurant-actions select:focus {
+  outline: none;
+  border-color: #07450C;
+}
+
+.restaurant-actions button {
+  padding: 0.5rem 1rem;
+  border: 2px solid #07450C;
+  background: white;
+  color: #07450C;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.restaurant-actions button:hover {
+  background: #07450C;
+  color: white;
 }
 
 .post-actions-bar {

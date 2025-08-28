@@ -135,6 +135,10 @@
             <option value="score">Best Match</option>
           </select>
           <span class="sort-indicator">Currently: {{ getSortLabel() }}</span>
+          <label class="ai-toggle">
+            <input type="checkbox" v-model="aiBoost" />
+            <span>AI Boost</span>
+          </label>
         </div>
       </div>
 
@@ -144,6 +148,9 @@
             <div class="restaurant-title-section">
               <h4 class="restaurant-name">{{ restaurant.name }}</h4>
               <div class="restaurant-categories">{{ restaurant.categories }}</div>
+              <div v-if="aiBoost && restaurant._aiWhy && restaurant._aiWhy.length" class="ai-badges">
+                <span v-for="(why, idx) in restaurant._aiWhy.slice(0, 2)" :key="idx" class="ai-badge">🤖 {{ why }}</span>
+              </div>
             </div>
             <div class="restaurant-rating">
               <div class="stars-display">
@@ -247,6 +254,7 @@
 
 <script>
 import axios from 'axios'
+import aiRecommender from '@/services/aiRecommender.js'
 
 export default {
   name: 'YelpSearch',
@@ -266,7 +274,8 @@ export default {
       displayedCount: 25,  // Number of restaurants to show initially (increased from 10)
       loadMoreLoading: false,  // Loading state for load more button
       scrollThrottle: null,  // Throttle for scroll events
-      showFilters: true // New data property for filter visibility
+      showFilters: true, // New data property for filter visibility
+      aiBoost: false
     }
   },
   computed: {
@@ -284,42 +293,44 @@ export default {
       return filtered
     },
     
+    aiProcessedResults() {
+      if (!this.aiBoost) return this.filteredResults
+      const { restaurants } = aiRecommender.scoreAndExplain(this.filteredResults, { now: new Date() })
+      // Expose AI score in generic 'score' field for sorting UI
+      return restaurants.map(r => ({ ...r, score: Math.round((r._aiScore || 0) * 100) }))
+    },
+    
     sortedResults() {
-      if (!this.filteredResults.length) return []
+      const base = this.aiBoost ? this.aiProcessedResults : this.filteredResults
+      if (!base.length) return []
       
-      const sorted = [...this.filteredResults].sort((a, b) => {
+      const sorted = [...base].sort((a, b) => {
         switch (this.sortBy) {
           case 'stars':
-            // Sort by stars first, then by review count for tie-breaking
-            if (b.stars !== a.stars) {
-              return b.stars - a.stars
-            }
+            if (b.stars !== a.stars) return b.stars - a.stars
             return b.review_count - a.review_count
           case 'review_count':
-            // Sort by review count first, then by stars for tie-breaking
-            if (b.review_count !== a.review_count) {
-              return b.review_count - a.stars
-            }
+            if (b.review_count !== a.review_count) return b.review_count - a.stars
             return b.stars - a.stars
           case 'score':
           default:
-            // Sort by score, with fallback to stars if no score
             const scoreA = a.score || a.stars * 10
             const scoreB = b.score || b.stars * 10
-            if (scoreB !== scoreA) {
-              return scoreB - scoreA
-            }
-            // Fallback to stars if scores are equal
+            if (scoreB !== scoreA) return scoreB - scoreA
             return b.stars - a.stars
         }
       })
       
-      // Return only the number of restaurants to display
       return sorted.slice(0, this.displayedCount)
     },
     
     hasMoreResults() {
       return this.filteredResults.length > this.displayedCount
+    }
+  },
+  watch: {
+    aiBoost(newVal) {
+      if (newVal) this.sortBy = 'score'
     }
   },
   methods: {
@@ -343,7 +354,7 @@ export default {
         const res = await axios.post('http://localhost:8000/recommend', requestData)
         this.results = res.data
         this.resultsTitle = `Results for "${this.query}"`
-        this.sortBy = 'stars' // Reset to stars (highest first)
+        this.sortBy = this.aiBoost ? 'score' : 'stars'
       } catch (err) {
         console.error('Error fetching recommendations:', err)
         this.error = 'Error fetching recommendations. Please try again.'
@@ -375,7 +386,7 @@ export default {
         const res = await axios.post('http://localhost:8000/recommend-by-location', requestData)
         this.results = res.data
         this.resultsTitle = `Restaurants in ${this.location}`
-        this.sortBy = 'stars' // Reset to stars (highest first)
+        this.sortBy = this.aiBoost ? 'score' : 'stars'
       } catch (err) {
         console.error('Error fetching location recommendations:', err)
         this.error = 'Error fetching recommendations. Please try again.'
@@ -389,7 +400,6 @@ export default {
     },
 
     sortResults() {
-      // Force reactivity by triggering a re-render
       this.$forceUpdate()
       console.log('Sorting by:', this.sortBy)
     },
@@ -401,7 +411,7 @@ export default {
         case 'review_count':
           return 'Popularity'
         case 'score':
-          return 'Best Match'
+          return this.aiBoost ? 'AI Score' : 'Best Match'
         default:
           return 'Rating'
       }
@@ -414,11 +424,7 @@ export default {
       this.error = ''
 
       try {
-        // Increase the displayed count to show more results
         this.displayedCount += 10
-        
-        // No need to make another API call since we already have all results
-        // Just show more of what we already have
         this.loadMoreLoading = false
       } catch (err) {
         console.error('Error loading more recommendations:', err)
@@ -428,28 +434,25 @@ export default {
     },
 
     handleScroll() {
-      // Throttle scroll events to prevent too many calls
       if (this.scrollThrottle) return
       
       this.scrollThrottle = setTimeout(() => {
         const { scrollHeight, scrollTop, clientHeight } = document.documentElement
-        const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200 // 200px from bottom
+        const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200
         
         if (isNearBottom && this.hasMoreResults && !this.loadMoreLoading) {
           this.loadMore()
         }
         
         this.scrollThrottle = null
-      }, 100) // Throttle to 100ms
+      }, 100)
     }
   },
   mounted() {
-    // Add scroll event listener for infinite scroll
     window.addEventListener('scroll', this.handleScroll)
   },
   
   beforeUnmount() {
-    // Clean up scroll event listener
     window.removeEventListener('scroll', this.handleScroll)
   }
 }
@@ -1253,6 +1256,34 @@ export default {
     min-width: auto;
     text-align: left;
   }
+}
+
+/* AI badges and toggle styles */
+.ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid rgba(7, 69, 12, 0.2);
+  color: #07450C;
+  font-weight: 600;
+}
+
+.ai-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.ai-badge {
+  background: rgba(7, 69, 12, 0.08);
+  color: #07450C;
+  border: 1px solid rgba(7, 69, 12, 0.15);
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
 }
 </style>
 
