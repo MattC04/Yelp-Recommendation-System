@@ -75,33 +75,31 @@
       </div>
     </div>
 
-    <!-- Location Search Section -->
+    <!-- Combined Yelp-style Search Bar -->
     <div class="search-section">
-      <label class="search-label">Enter Your Location</label>
-      <div class="input-button-group">
-        <input 
-          v-model="location" 
-          @keyup.enter="searchByLocation"
-          type="text" 
-          placeholder="Enter city, state, or zip code..." 
-          class="location-input"
-        >
-        <button @click="searchByLocation" class="search-btn">Find Restaurants</button>
-      </div>
-    </div>
-
-    <!-- Craving Search Section -->
-    <div class="search-section">
-      <label class="search-label">Or Search by Craving</label>
-      <div class="input-button-group">
-        <input 
-          v-model="query" 
-          @keyup.enter="searchByCraving"
-          type="text" 
-          placeholder="Type your craving or occasion..." 
-          class="craving-input"
-        >
-        <button @click="searchByCraving" class="search-btn">Search</button>
+      <label class="search-label">Search</label>
+      <div class="yelp-bar">
+        <div class="yelp-field">
+          <span class="yelp-field-label">Find</span>
+          <input 
+            v-model="query"
+            @keyup.enter="search"
+            type="text"
+            placeholder="burgers, sushi, date night..."
+            class="yelp-input"
+          >
+        </div>
+        <div class="yelp-field">
+          <span class="yelp-field-label">Near</span>
+          <input 
+            v-model="location"
+            @keyup.enter="search"
+            type="text"
+            placeholder="San Francisco, CA or 94105"
+            class="yelp-input"
+          >
+        </div>
+        <button @click="search" class="search-btn primary">Search</button>
       </div>
     </div>
 
@@ -314,6 +312,14 @@ export default {
     }
   },
   methods: {
+    async search() {
+      // Prefer location-based search when location is provided; otherwise use craving
+      if (this.location && this.location.trim().length > 0) {
+        await this.searchByLocation()
+      } else {
+        await this.searchByCraving()
+      }
+    },
     async searchByCraving() {
       if (!this.query.trim()) return
       this.loading = true
@@ -343,7 +349,6 @@ export default {
         this.loading = false
       }
     },
-
     async searchByLocation() {
       if (!this.location.trim()) return
       this.loading = true
@@ -359,7 +364,7 @@ export default {
         }
         const res = await axios.post('http://localhost:8000/recommend-by-location', requestData)
         this.results = res.data
-        this.resultsTitle = `Restaurants in ${this.location}`
+        this.resultsTitle = this.query.trim() ? `"${this.query}" near ${this.location}` : `Restaurants in ${this.location}`
         this.sortBy = 'score'
       } catch (err) {
         console.error('Error fetching location recommendations:', err)
@@ -372,7 +377,6 @@ export default {
         this.loading = false
       }
     },
-
     sortResults() {
       this.$forceUpdate()
     },
@@ -1302,6 +1306,61 @@ export default {
 
 .feedback-btn.neg:hover {
   background: #D32F2F; /* Darker Red */
+}
+
+/* Combined Yelp-style bar */
+.yelp-bar {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr auto;
+  gap: 0.5rem;
+  align-items: stretch;
+  max-width: 800px;
+  margin: 0 auto 1rem auto;
+}
+
+.yelp-field {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #07450C;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.yelp-field-label {
+  background: rgba(7, 69, 12, 0.08);
+  color: #07450C;
+  font-weight: 700;
+  padding: 0.5rem 0.75rem;
+  border-right: 1px solid rgba(7, 69, 12, 0.2);
+}
+
+.yelp-input {
+  flex: 1;
+  padding: 0.75rem 0.75rem;
+  border: none;
+  outline: none;
+  color: #07450C;
+}
+
+.search-btn.primary {
+  padding: 0.75rem 1.25rem;
+  background: #07450C;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.search-btn.primary:hover {
+  background: #0a5a0f;
+}
+
+@media (max-width: 768px) {
+  .yelp-bar {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 
