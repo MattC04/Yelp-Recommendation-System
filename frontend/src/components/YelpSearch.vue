@@ -580,60 +580,159 @@ export default {
 .advanced-options {
   margin-bottom: 2rem;
   padding: 1.5rem;
-  background: rgba(7, 69, 12, 0.05);
-  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(7, 69, 12, 0.06), rgba(7, 69, 12, 0.03));
+  border-radius: 12px;
   text-align: center;
+  border: 1px solid rgba(7, 69, 12, 0.15);
+  box-shadow: 0 6px 18px rgba(7, 69, 12, 0.08);
 }
 
 .options-row {
   display: flex;
   justify-content: center;
-  gap: 2rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
 }
 
 .option-group {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  min-width: 150px;
+  align-items: stretch;
+  min-width: 220px;
+  background: white;
+  border: 1px solid rgba(7, 69, 12, 0.12);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
 }
 
 .option-label {
   color: #07450C;
-  font-weight: bold;
+  font-weight: 800;
   margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.2px;
 }
 
+/* Custom select styling */
+.select-input {
+  padding: 0.6rem 0.75rem;
+  border: 2px solid rgba(7, 69, 12, 0.25);
+  border-radius: 10px;
+  background: white;
+  color: #07450C;
+  font-size: 0.95rem;
+  min-width: 140px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #07450C 50%), linear-gradient(135deg, #07450C 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.select-input:focus {
+  border-color: #07450C;
+  box-shadow: 0 0 0 3px rgba(7, 69, 12, 0.15);
+}
+
+/* Custom checkboxes */
 .checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
   align-items: flex-start;
 }
 
 .checkbox-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.5rem;
   color: #07450C;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   cursor: pointer;
+  user-select: none;
 }
 
 .checkbox-item input[type="checkbox"] {
-  accent-color: #07450C;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(7, 69, 12, 0.4);
+  border-radius: 6px;
+  display: inline-grid;
+  place-content: center;
+  background: white;
+  transition: all 0.15s ease;
 }
 
-.select-input {
-  padding: 0.5rem;
-  border: 1px solid #07450C;
-  border-radius: 4px;
+.checkbox-item input[type="checkbox"]:checked {
+  background: #07450C;
+  border-color: #07450C;
+}
+
+.checkbox-item input[type="checkbox"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1em 1em white;
+  border-radius: 2px;
+}
+
+.checkbox-item input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+
+/* Yelp search bar enhancements */
+.yelp-field {
+  border: 2px solid rgba(7, 69, 12, 0.25);
+  border-radius: 10px;
   background: white;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.yelp-field:focus-within {
+  border-color: #07450C;
+  box-shadow: 0 0 0 4px rgba(7, 69, 12, 0.12);
+}
+
+.yelp-field-label {
+  background: rgba(7, 69, 12, 0.08);
   color: #07450C;
-  font-size: 0.9rem;
-  min-width: 120px;
+  font-weight: 800;
+}
+
+.yelp-input::placeholder {
+  color: #07450C;
+  opacity: 0.6;
+}
+
+/* Buttons */
+.search-btn.primary {
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(7, 69, 12, 0.2);
+}
+
+.toolbar-btn {
+  border-radius: 10px;
+}
+
+/* Cards and stats enhancements */
+.restaurant-card {
+  border-radius: 14px;
+  border: 1px solid rgba(7, 69, 12, 0.12);
+}
+
+.detail-item {
+  background: linear-gradient(180deg, rgba(7,69,12,0.05), rgba(7,69,12,0.03));
+  border-left: 4px solid #07450C;
+}
+
+.stat-item {
+  background: linear-gradient(135deg, rgba(7, 69, 12, 0.1), rgba(7, 69, 12, 0.06));
+  border: 1px solid rgba(7, 69, 12, 0.18);
 }
 
 /* Loading animation */
@@ -1360,6 +1459,13 @@ export default {
 @media (max-width: 768px) {
   .yelp-bar {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive tweaks for filter cards */
+@media (max-width: 768px) {
+  .option-group {
+    min-width: 100%;
   }
 }
 </style>

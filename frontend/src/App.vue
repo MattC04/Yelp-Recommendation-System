@@ -186,6 +186,8 @@ body {
   border-radius: 20px;
   transition: all 0.2s ease;
   position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
 .nav-link:hover {
@@ -193,21 +195,20 @@ body {
   color: #0a5a0f;
 }
 
+.nav-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(7, 69, 12, 0.2);
+}
+
 .nav-link.router-link-active {
   background: #07450C;
   color: white;
+  box-shadow: inset 0 -3px 0 0 rgba(255,255,255,0.0); /* reset */
 }
 
-.nav-link.router-link-active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 3px;
-  background: #07450C;
-  border-radius: 2px;
+/* Replace pseudo underline with inset shadow to avoid square artifacts */
+.nav-link.router-link-active {
+  box-shadow: inset 0 -3px 0 0 #07450C;
 }
 
 /* Mobile Menu Button */
