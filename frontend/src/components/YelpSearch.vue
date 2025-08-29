@@ -76,7 +76,7 @@
     </div>
 
     <!-- Combined Yelp-style Search Bar -->
-    <div class="search-section">
+    <div class="search-section sticky-search">
       <label class="search-label">Search</label>
       <div class="yelp-bar">
         <div class="yelp-field">
@@ -100,6 +100,18 @@
           >
         </div>
         <button @click="search" class="search-btn primary">Search</button>
+      </div>
+
+      <!-- Quick Filter Pills -->
+      <div class="quick-filters">
+        <button 
+          v-for="pill in quickFilterPills" 
+          :key="pill.id" 
+          @click="applyQuickFilter(pill.id)"
+          :class="['filter-pill', { active: activeQuickFilter === pill.id }]"
+        >
+          {{ pill.icon }} {{ pill.label }}
+        </button>
       </div>
     </div>
 
@@ -144,6 +156,7 @@
               <div class="restaurant-categories">{{ restaurant.categories }}</div>
               <div v-if="restaurant._aiWhy && restaurant._aiWhy.length" class="ai-badges">
                 <span v-for="(why, idx) in restaurant._aiWhy.slice(0, 2)" :key="idx" class="ai-badge">🤖 {{ why }}</span>
+                <button class="why-btn" @click.stop="toggleWhy(restaurant)">Why?</button>
               </div>
             </div>
             <div class="restaurant-rating">
@@ -157,6 +170,15 @@
               </div>
               <span class="review-count">({{ restaurant.review_count }} reviews)</span>
             </div>
+          </div>
+          
+          <!-- Why Popover -->
+          <div v-if="showWhyForId === restaurant.name && restaurant._aiWhy && restaurant._aiWhy.length" class="why-popover">
+            <div class="why-header">Why we recommended this</div>
+            <ul class="why-list">
+              <li v-for="(why, idx) in restaurant._aiWhy" :key="idx">{{ why }}</li>
+            </ul>
+            <button class="why-close" @click.stop="showWhyForId = null">Close</button>
           </div>
           
           <div class="restaurant-details">
@@ -269,7 +291,15 @@ export default {
       displayedCount: 25,
       loadMoreLoading: false,
       scrollThrottle: null,
-      showFilters: true
+      showFilters: true,
+      activeQuickFilter: '',
+      quickFilterPills: [
+        { id: 'top_rated', label: 'Top Rated', icon: '⭐' },
+        { id: 'popular', label: 'Popular', icon: '🔥' },
+        { id: 'budget', label: 'Budget', icon: '💸' },
+        { id: 'family', label: 'Family Friendly', icon: '👨‍👩‍👧‍👦' }
+      ],
+      showWhyForId: null
     }
   },
   computed: {
@@ -433,6 +463,33 @@ export default {
       const cuisine = String(restaurant.categories || restaurant.cuisine || '').toString()
       feedbackService.recordNegative({ restaurantName: restaurant.name, cuisine })
       this.$forceUpdate()
+    },
+    applyQuickFilter(id) {
+      this.activeQuickFilter = id === this.activeQuickFilter ? '' : id
+      switch (this.activeQuickFilter) {
+        case 'top_rated':
+          this.sortBy = 'stars'
+          break
+        case 'popular':
+          this.sortBy = 'review_count'
+          break
+        case 'budget':
+          this.selectedPriceRange = 'budget'
+          this.sortBy = 'score'
+          break
+        case 'family':
+          // Soft filter by family keywords via client-side filter pass
+          // We re-run search to let backend filter if possible in future
+          this.sortBy = 'score'
+          break
+        default:
+          this.selectedPriceRange = ''
+          this.sortBy = 'score'
+      }
+      this.$forceUpdate()
+    },
+    toggleWhy(restaurant) {
+      this.showWhyForId = this.showWhyForId === restaurant.name ? null : restaurant.name
     }
   },
   mounted() {
@@ -1467,6 +1524,74 @@ export default {
   .option-group {
     min-width: 100%;
   }
+}
+
+/* Sticky search bar */
+.sticky-search {
+  position: sticky;
+  top: 70px;
+  z-index: 50;
+  background: white;
+  padding-top: 0.5rem;
+}
+
+/* Quick filter pills */
+.quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.filter-pill {
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 2px solid rgba(7, 69, 12, 0.25);
+  background: white;
+  color: #07450C;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.filter-pill.active,
+.filter-pill:hover {
+  background: #07450C;
+  color: white;
+  border-color: #07450C;
+}
+
+/* Why popover */
+.why-btn {
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(7,69,12,0.25);
+  background: white;
+  color: #07450C;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.why-btn:hover { background: rgba(7,69,12,0.08); }
+
+.why-popover {
+  position: relative;
+  margin: 0.5rem 0 0.25rem 0;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid rgba(7,69,12,0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+}
+
+.why-header { color: #07450C; font-weight: 800; margin-bottom: 0.5rem; }
+.why-list { margin: 0; padding-left: 1rem; color: #07450C; }
+.why-list li { margin: 0.2rem 0; }
+.why-close { margin-top: 0.5rem; padding: 0.35rem 0.75rem; border: none; border-radius: 6px; background: #07450C; color: white; cursor: pointer; }
+
+@media (max-width: 768px) {
+  .sticky-search { top: 60px; }
 }
 </style>
 
