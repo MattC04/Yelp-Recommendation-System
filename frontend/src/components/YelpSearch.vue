@@ -131,6 +131,24 @@
         <div class="steam s3"></div>
       </div>
       <p class="loading-caption">Cooking up recommendations...</p>
+      <!-- Skeleton rows -->
+      <div class="skeleton-list">
+        <div class="skeleton-card" v-for="i in 3" :key="i">
+          <div class="skeleton-avatar"></div>
+          <div class="skeleton-lines">
+            <div class="line l1"></div>
+            <div class="line l2"></div>
+            <div class="line l3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else-if="!loading && !error && results.length === 0" class="empty-state">
+      <div class="empty-emoji">🔎</div>
+      <h3 class="empty-title">Start exploring great places</h3>
+      <p class="empty-text">Try a cuisine like “sushi” or an occasion like “date night”, and set your location.</p>
     </div>
 
     <!-- Results Section -->
@@ -152,11 +170,14 @@
         <div v-for="restaurant in sortedResults" :key="restaurant.name" class="restaurant-card" @mouseenter="recordView(restaurant)" @click.capture="recordClick(restaurant)">
           <div class="restaurant-header">
             <div class="restaurant-title-section">
-              <h4 class="restaurant-name">{{ restaurant.name }}</h4>
-              <div class="restaurant-categories">{{ restaurant.categories }}</div>
-              <div v-if="restaurant._aiWhy && restaurant._aiWhy.length" class="ai-badges">
-                <span v-for="(why, idx) in restaurant._aiWhy.slice(0, 2)" :key="idx" class="ai-badge">🤖 {{ why }}</span>
-                <button class="why-btn" @click.stop="toggleWhy(restaurant)">Why?</button>
+              <div class="avatar">{{ getInitials(restaurant.name) }}</div>
+              <div>
+                <h4 class="restaurant-name">{{ restaurant.name }}</h4>
+                <div class="restaurant-categories">{{ restaurant.categories }}</div>
+                <div v-if="restaurant._aiWhy && restaurant._aiWhy.length" class="ai-badges">
+                  <span v-for="(why, idx) in restaurant._aiWhy.slice(0, 2)" :key="idx" class="ai-badge">🤖 {{ why }}</span>
+                  <button class="why-btn" @click.stop="toggleWhy(restaurant)">Why?</button>
+                </div>
               </div>
             </div>
             <div class="restaurant-rating">
@@ -186,6 +207,7 @@
               <div class="detail-item">
                 <span class="detail-label">📍 Address:</span>
                 <span class="detail-value">{{ restaurant.address }}</span>
+                <button class="copy-btn" @click="copyAddress(restaurant)">Copy</button>
               </div>
               
               <div class="detail-item">
@@ -265,6 +287,9 @@
     <div v-else-if="error" class="error-message">
       {{ error }}
     </div>
+
+    <!-- Toast element -->
+    <div v-if="toast.show" class="toast show">{{ toast.text }}</div>
   </div>
 </template>
 
@@ -299,7 +324,8 @@ export default {
         { id: 'budget', label: 'Budget', icon: '💸' },
         { id: 'family', label: 'Family Friendly', icon: '👨‍👩‍👧‍👦' }
       ],
-      showWhyForId: null
+      showWhyForId: null,
+      toast: { show: false, text: '' }
     }
   },
   computed: {
@@ -490,6 +516,22 @@ export default {
     },
     toggleWhy(restaurant) {
       this.showWhyForId = this.showWhyForId === restaurant.name ? null : restaurant.name
+    },
+    copyAddress(restaurant) {
+      navigator.clipboard.writeText(`${restaurant.name} — ${restaurant.address}`).then(() => {
+        this.showToast('Address copied to clipboard')
+      }).catch(() => {
+        this.showToast('Unable to copy')
+      })
+    },
+    showToast(text) {
+      this.toast.text = text
+      this.toast.show = true
+      setTimeout(() => { this.toast.show = false }, 1800)
+    },
+    getInitials(name) {
+      const parts = String(name || '').split(' ').filter(Boolean)
+      return (parts[0]?.[0] || 'R').toUpperCase() + (parts[1]?.[0] || '')
     }
   },
   mounted() {
@@ -1593,5 +1635,32 @@ export default {
 @media (max-width: 768px) {
   .sticky-search { top: 60px; }
 }
+
+/* Skeletons */
+.skeleton-list { max-width: 800px; margin: 0.5rem auto 0; display: grid; gap: 0.75rem; }
+.skeleton-card { display: flex; gap: 0.75rem; padding: 0.75rem; border: 1px solid #eee; border-radius: 10px; }
+.skeleton-avatar { width: 40px; height: 40px; border-radius: 50%; background: #eaeaea; }
+.skeleton-lines { flex: 1; display: grid; gap: 0.35rem; }
+.line { height: 10px; background: #eaeaea; border-radius: 6px; }
+.line.l1 { width: 60%; }
+.line.l2 { width: 80%; }
+.line.l3 { width: 40%; }
+
+/* Empty state */
+.empty-state { text-align: center; color: #07450C; padding: 2rem 0; }
+.empty-emoji { font-size: 2rem; margin-bottom: 0.25rem; }
+.empty-title { margin: 0.25rem 0; }
+.empty-text { opacity: 0.7; }
+
+/* Avatars */
+avatar, .avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(7,69,12,0.1); color: #07450C; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; margin-right: 0.75rem; }
+
+/* Copy button */
+.copy-btn { margin-left: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 6px; border: 1px solid rgba(7,69,12,0.25); background: white; color: #07450C; cursor: pointer; font-size: 0.8rem; }
+.copy-btn:hover { background: rgba(7,69,12,0.08); }
+
+/* Toast */
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #07450C; color: white; padding: 0.5rem 0.9rem; border-radius: 999px; box-shadow: 0 8px 18px rgba(0,0,0,0.15); opacity: 0; transition: opacity 0.2s ease; }
+.toast.show { opacity: 1; }
 </style>
 
