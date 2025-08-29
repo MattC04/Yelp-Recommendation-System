@@ -8,6 +8,8 @@ import numpy as np
 import hashlib
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
+import sqlite3
+import time
 
 # NLP imports
 try:
@@ -35,6 +37,116 @@ app.add_middleware(
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
+
+# ---------------------------
+# SQLite Event Store (Light)
+# ---------------------------
+DB_PATH = os.path.join(os.path.dirname(__file__), 'events.db')
+
+def get_db():
+	conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+	conn.execute("PRAGMA journal_mode=WAL;")
+	conn.row_factory = sqlite3.Row
+	return conn
+
+def init_db():
+	conn = get_db()
+	conn.execute(
+		"""
+		CREATE TABLE IF NOT EXISTS events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			ts INTEGER NOT NULL,
+			type TEXT NOT NULL,
+			restaurant_name TEXT,
+			cuisine TEXT,
+			session_id TEXT,
+			user_id TEXT
+		);
+		"""
+	)
+	conn.commit()
+	conn.close()
+
+@app.on_event("startup")
+def on_startup():
+	try:
+		init_db()
+		logger.info(f"SQLite event store initialized at {DB_PATH}")
+	except Exception as e:
+		logger.error(f"Failed to initialize DB: {e}")
+
+class EventIn(BaseModel):
+	type: str  # 'click' | 'view' | 'positive' | 'negative' | 'save'
+	restaurantName: Optional[str] = None
+	cuisine: Optional[str] = None
+	sessionId: Optional[str] = None
+	userId: Optional[str] = None
+	ts: Optional[int] = None  # epoch ms
+
+class EventsIn(BaseModel):
+	events: List[EventIn]
+
+@app.post("/events")
+def ingest_events(payload: EventsIn):
+	try:
+		conn = get_db()
+		cur = conn.cursor()
+		rows = []
+		for e in payload.events:
+			ts = e.ts if e.ts is not None else int(time.time() * 1000)
+			rows.append((ts, e.type, (e.restaurantName or '')[:256], (e.cuisine or '')[:256], (e.sessionId or '')[:128], (e.userId or '')[:128]))
+		cur.executemany(
+			"INSERT INTO events (ts, type, restaurant_name, cuisine, session_id, user_id) VALUES (?,?,?,?,?,?)",
+			rows
+		)
+		conn.commit()
+		return {"status": "ok", "inserted": len(rows)}
+	except Exception as e:
+		logger.error(f"Failed to ingest events: {e}")
+		raise HTTPException(status_code=500, detail="Failed to ingest events")
+	finally:
+		try:
+			conn.close()
+		except Exception:
+			pass
+
+@app.get("/events/aggregate")
+def aggregate_events(half_life_hours: int = 72):
+	"""Return decayed positive/negative cuisine weights and basic CTR."""
+	try:
+		conn = get_db()
+		cur = conn.cursor()
+		cur.execute("SELECT ts, type, cuisine FROM events WHERE cuisine IS NOT NULL AND cuisine != ''")
+		rows = cur.fetchall()
+		now = int(time.time() * 1000)
+		lam = np.log(2) / (half_life_hours * 3600 * 1000)
+		cuisine_pos = {}
+		cuisine_neg = {}
+		clicks = 0.0
+		views = 0.0
+		for r in rows:
+			age = max(0, now - int(r[0]))
+			w = float(np.exp(-lam * age))
+			t = r[1]
+			c = str(r[2]).lower()
+			if t in ("positive", "save"):
+				cuisine_pos[c] = cuisine_pos.get(c, 0.0) + w
+			elif t == "negative":
+				cuisine_neg[c] = cuisine_neg.get(c, 0.0) + w
+			elif t == "click":
+				clicks += w
+			elif t == "view":
+				views += w
+		ctr = (clicks / views) if views > 0 else 0.0
+		return {"cuisinePos": cuisine_pos, "cuisineNeg": cuisine_neg, "ctr": ctr, "count": len(rows)}
+	except Exception as e:
+		logger.error(f"Failed to aggregate events: {e}")
+		raise HTTPException(status_code=500, detail="Failed to aggregate events")
+	finally:
+		try:
+			conn.close()
+		except Exception:
+			pass
 
 # Initialize NLP models
 nlp_model = None

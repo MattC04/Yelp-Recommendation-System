@@ -2,6 +2,8 @@
 // Persists to localStorage and exposes A/B variant assignment
 
 const STORAGE_KEY = 'belp_feedback'
+const QUEUE_KEY = 'belp_feedback_queue'
+const API_BASE = 'http://localhost:8000'
 
 class FeedbackService {
   constructor() {
@@ -18,6 +20,10 @@ class FeedbackService {
       this.sessionStartedAt = Date.now()
       this.save()
     }
+    // delivery state
+    const q = this.loadQueue()
+    this.queue = Array.isArray(q) ? q : []
+    this.isSending = false
   }
 
   assignVariant() {
@@ -40,6 +46,9 @@ class FeedbackService {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     } catch (_) {}
   }
+  saveQueue() {
+    try { localStorage.setItem(QUEUE_KEY, JSON.stringify(this.queue)) } catch (_) {}
+  }
 
   load() {
     try {
@@ -48,6 +57,9 @@ class FeedbackService {
     } catch (_) {
       return null
     }
+  }
+  loadQueue() {
+    try { const raw = localStorage.getItem(QUEUE_KEY); return raw ? JSON.parse(raw) : [] } catch (_) { return [] }
   }
 
   // Record feedback events
@@ -59,6 +71,10 @@ class FeedbackService {
     // cap size
     if (this.events.length > 1000) this.events.pop()
     this.save()
+    // enqueue for backend delivery
+    this.queue.push(payload)
+    this.saveQueue()
+    this.flushSoon()
     return payload
   }
 
@@ -109,6 +125,44 @@ class FeedbackService {
     const sessionBoost = Math.max(0.85, 1.0 - Math.min(0.3, sessionAgeMin / 120 * 0.3))
 
     return { cuisinePos, cuisineNeg, ctr, sessionBoost, variant: this.variant }
+  }
+
+  // Delivery batching with backoff
+  async flushSoon() {
+    if (this.isSending) return
+    this.isSending = true
+    try {
+      let delay = 0
+      while (this.queue.length > 0) {
+        const batch = this.queue.splice(0, Math.min(50, this.queue.length))
+        const body = { events: batch.map(e => ({
+          type: e.type,
+          restaurantName: e.restaurantName || '',
+          cuisine: e.cuisine || '',
+          sessionId: e.sessionId || this.sessionId,
+          userId: e.userId || '',
+          ts: e.ts
+        })) }
+        const res = await fetch(`${API_BASE}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        })
+        if (!res.ok) throw new Error('Failed to POST events')
+        delay = 0
+        this.saveQueue()
+      }
+    } catch (e) {
+      // exponential backoff capped at 30s
+      const jitter = Math.random() * 300
+      const current = this._backoff || 500
+      const next = Math.min(30000, current * 2)
+      this._backoff = next
+      this.saveQueue()
+      setTimeout(() => this.flushSoon(), next + jitter)
+    } finally {
+      this.isSending = false
+    }
   }
 }
 
