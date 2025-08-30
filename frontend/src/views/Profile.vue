@@ -1,262 +1,217 @@
 <template>
   <div class="profile-container">
-    <div class="profile-header">
-      <div class="profile-avatar">
-        <span class="avatar-icon">👤</span>
-      </div>
-      <div class="profile-info">
-        <h1 class="profile-name">Welcome, Foodie!</h1>
-        <p class="profile-email">foodie@example.com</p>
-        <div class="profile-stats">
-          <div class="stat-item">
-            <span class="stat-number">12</span>
-            <span class="stat-label">Reviews</span>
+    <!-- Smart Onboarding Flow -->
+    <div v-if="!hasCompletedOnboarding" class="onboarding-overlay">
+      <div class="onboarding-container">
+        <div class="onboarding-header">
+          <h1 class="onboarding-title">🍽️ Welcome to BELP</h1>
+          <p class="onboarding-subtitle">Let's personalize your dining experience with AI-powered recommendations</p>
+        </div>
+        
+        <div class="onboarding-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: (onboardingStep / 4) * 100 + '%' }"></div>
           </div>
-          <div class="stat-item">
-            <span class="stat-number">8</span>
-            <span class="stat-label">Favorites</span>
+          <span class="progress-text">Step {{ onboardingStep }} of 4</span>
+        </div>
+
+        <!-- Step 1: Cuisine Preferences -->
+        <div v-if="onboardingStep === 1" class="onboarding-step">
+          <h2>What cuisines do you love?</h2>
+          <p>Select all that apply to help us understand your taste</p>
+          <div class="preference-grid">
+            <button
+              v-for="cuisine in cuisineOptions"
+              :key="cuisine.id"
+              @click="togglePreference('cuisines', cuisine.id)"
+              :class="['preference-btn', { active: userPreferences.cuisines.includes(cuisine.id) }]"
+            >
+              {{ cuisine.icon }} {{ cuisine.name }}
+            </button>
           </div>
-          <div class="stat-item">
-            <span class="stat-number">5</span>
-            <span class="stat-label">Lists</span>
+          <div class="step-actions">
+            <button @click="nextOnboardingStep" class="btn-primary" :disabled="userPreferences.cuisines.length === 0">
+              Next: Budget Preferences →
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Budget Preferences -->
+        <div v-if="onboardingStep === 2" class="onboarding-step">
+          <h2>What's your typical dining budget?</h2>
+          <p>This helps us suggest restaurants that fit your lifestyle</p>
+          <div class="budget-options">
+            <button
+              v-for="budget in budgetOptions"
+              :key="budget.id"
+              @click="selectBudget(budget.id)"
+              :class="['budget-btn', { active: userPreferences.budget === budget.id }]"
+            >
+              <div class="budget-icon">{{ budget.icon }}</div>
+              <div class="budget-info">
+                <div class="budget-name">{{ budget.name }}</div>
+                <div class="budget-range">{{ budget.range }}</div>
+              </div>
+            </button>
+          </div>
+          <div class="step-actions">
+            <button @click="onboardingStep--" class="btn-secondary">← Back</button>
+            <button @click="nextOnboardingStep" class="btn-primary" :disabled="!userPreferences.budget">
+              Next: Occasion Preferences →
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3: Occasion Preferences -->
+        <div v-if="onboardingStep === 3" class="onboarding-step">
+          <h2>What occasions do you dine out for?</h2>
+          <p>Select the dining experiences that matter most to you</p>
+          <div class="preference-grid">
+            <button
+              v-for="occasion in occasionOptions"
+              :key="occasion.id"
+              @click="togglePreference('occasions', occasion.id)"
+              :class="['preference-btn', { active: userPreferences.occasions.includes(occasion.id) }]"
+            >
+              {{ occasion.icon }} {{ occasion.name }}
+            </button>
+          </div>
+          <div class="step-actions">
+            <button @click="onboardingStep--" class="btn-secondary">← Back</button>
+            <button @click="nextOnboardingStep" class="btn-primary" :disabled="userPreferences.occasions.length === 0">
+              Next: Dietary Needs →
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 4: Dietary Preferences -->
+        <div v-if="onboardingStep === 4" class="onboarding-step">
+          <h2>Any dietary restrictions or preferences?</h2>
+          <p>We'll make sure all recommendations work for you</p>
+          <div class="preference-grid">
+            <button
+              v-for="diet in dietaryOptions"
+              :key="diet.id"
+              @click="togglePreference('dietary', diet.id)"
+              :class="['preference-btn', { active: userPreferences.dietary.includes(diet.id) }]"
+            >
+              {{ diet.icon }} {{ diet.name }}
+            </button>
+          </div>
+          <div class="step-actions">
+            <button @click="onboardingStep--" class="btn-secondary">← Back</button>
+            <button @click="completeOnboarding" class="btn-primary">
+              🎉 Start Discovering!
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="profile-content">
-      <!-- Preferences Section -->
-      <div class="profile-section">
-        <h2 class="section-title">🍽️ Dietary Preferences</h2>
-        <div class="preferences-grid">
-          <div class="preference-item">
-            <label class="preference-label">
-              <input type="checkbox" v-model="preferences.vegetarian" class="preference-checkbox">
-              <span class="preference-text">Vegetarian</span>
-            </label>
-          </div>
-          <div class="preference-item">
-            <label class="preference-label">
-              <input type="checkbox" v-model="preferences.vegan" class="preference-checkbox">
-              <span class="preference-text">Vegan</span>
-            </label>
-          </div>
-          <div class="preference-item">
-            <label class="preference-label">
-              <input type="checkbox" v-model="preferences.glutenFree" class="preference-checkbox">
-              <span class="preference-text">Gluten-Free</span>
-            </label>
-          </div>
-          <div class="preference-item">
-            <label class="preference-label">
-              <input type="checkbox" v-model="preferences.halal" class="preference-checkbox">
-              <span class="preference-text">Halal</span>
-            </label>
-          </div>
-          <div class="preference-item">
-            <label class="preference-label">
-              <input type="checkbox" v-model="preferences.kosher" class="preference-checkbox">
-              <span class="preference-text">Kosher</span>
-            </label>
-          </div>
-          <div class="preference-item">
-            <label class="preference-label">
-              <input type="checkbox" v-model="preferences.dairyFree" class="preference-checkbox">
-              <span class="preference-text">Dairy-Free</span>
-            </label>
-          </div>
+    <!-- Main Profile Content (shown after onboarding) -->
+    <div v-else class="profile-content-wrapper">
+      <!-- Profile Header -->
+      <div class="profile-header">
+        <div class="profile-avatar">
+          <span class="avatar-icon">👤</span>
         </div>
-        <button @click="savePreferences" class="save-btn">Save Preferences</button>
-      </div>
-
-      <!-- Favorite Cuisines -->
-      <div class="profile-section">
-        <h2 class="section-title">🌮 Favorite Cuisines</h2>
-        <div class="cuisine-tags">
-          <span 
-            v-for="cuisine in cuisines" 
-            :key="cuisine.name"
-            :class="['cuisine-tag', { active: cuisine.active }]"
-            @click="toggleCuisine(cuisine.name)"
-          >
-            {{ cuisine.name }}
-          </span>
-        </div>
-      </div>
-
-      <!-- Recent Reviews -->
-      <div class="profile-section">
-        <h2 class="section-title">📝 Recent Reviews</h2>
-        <div class="reviews-list">
-          <div v-for="review in recentReviews" :key="review.id" class="review-card">
-            <div class="review-header">
-              <h3 class="restaurant-name">{{ review.restaurantName }}</h3>
-              <div class="review-rating">
-                <span class="stars">
-                  <span v-for="i in 5" :key="i" class="star">
-                    {{ i <= review.rating ? '★' : '☆' }}
-                  </span>
-                </span>
-                <span class="review-date">{{ review.date }}</span>
-              </div>
+        <div class="profile-info">
+          <h1 class="profile-name">Welcome, Foodie!</h1>
+          <p class="profile-email">foodie@example.com</p>
+          <div class="profile-stats">
+            <div class="stat-item">
+              <span class="stat-number">12</span>
+              <span class="stat-label">Reviews</span>
             </div>
-            <p class="review-text">{{ review.text }}</p>
-            <div class="review-meta">
-              <span class="meta-item">
-                <span class="meta-icon">🕐</span>
-                {{ review.visitTime }} ({{ review.visitDay }})
-              </span>
-              <span class="meta-item">
-                <span class="meta-icon">🍽️</span>
-                {{ review.foodType }}
-              </span>
-              <span class="meta-item">
-                <span class="meta-icon">💰</span>
-                {{ review.priceRange }}
+            <div class="stat-item">
+              <span class="stat-number">8</span>
+              <span class="stat-label">Favorites</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-number">5</span>
+              <span class="stat-label">Lists</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Personalization Dashboard -->
+      <div class="dashboard-section">
+        <h2 class="section-title">🎯 Your Taste Profile</h2>
+        <div class="taste-profile">
+          <div class="profile-item">
+            <span class="profile-label">Favorite Cuisines:</span>
+            <div class="profile-tags">
+              <span v-for="cuisine in userPreferences.cuisines" :key="cuisine" class="profile-tag">
+                {{ getCuisineName(cuisine) }}
               </span>
             </div>
-            <div class="review-tags">
-              <span v-for="tag in review.tags" :key="tag" class="review-tag">{{ tag }}</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Budget Range:</span>
+            <span class="profile-value">{{ getBudgetName(userPreferences.budget) }}</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Occasions:</span>
+            <div class="profile-tags">
+              <span v-for="occasion in userPreferences.occasions" :key="occasion" class="profile-tag">
+                {{ getOccasionName(occasion) }}
+              </span>
             </div>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Dietary Needs:</span>
+            <div class="profile-tags">
+              <span v-for="diet in userPreferences.dietary" :key="diet" class="profile-tag">
+                {{ getDietaryName(diet) }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <button @click="editPreferences" class="edit-btn">✏️ Edit Preferences</button>
+      </div>
+
+      <!-- AI Learning Progress -->
+      <div class="dashboard-section">
+        <h2 class="section-title">🤖 AI Learning Progress</h2>
+        <div class="learning-metrics">
+          <div class="metric">
+            <div class="metric-value">{{ totalInteractions }}</div>
+            <div class="metric-label">Total Interactions</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">{{ learningScore }}%</div>
+            <div class="metric-label">Learning Score</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value">{{ recommendationAccuracy }}%</div>
+            <div class="metric-label">Accuracy</div>
           </div>
         </div>
       </div>
 
-      <!-- Learning Insights -->
-      <div class="profile-section">
-        <h2 class="section-title">🧠 Your Dining Patterns</h2>
-        <div class="insights-grid">
-          <!-- Time Preferences -->
-          <div class="insight-card">
-            <h3 class="insight-title">⏰ Time Preferences</h3>
-            <div class="insight-content">
-              <div v-for="(count, time) in timePreferences" :key="time" class="preference-item">
-                <span class="preference-label">{{ formatTime(time) }}</span>
-                <div class="preference-bar">
-                  <div class="preference-fill" :style="{ width: (count / maxTimeCount * 100) + '%' }"></div>
-                </div>
-                <span class="preference-count">{{ count }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Day Preferences -->
-          <div class="insight-card">
-            <h3 class="insight-title">📅 Day Preferences</h3>
-            <div class="insight-content">
-              <div v-for="(count, day) in dayPreferences" :key="day" class="preference-item">
-                <span class="preference-label">{{ day }}</span>
-                <div class="preference-bar">
-                  <div class="preference-fill" :style="{ width: (count / maxDayCount * 100) + '%' }"></div>
-                </div>
-                <span class="preference-count">{{ count }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Cuisine Preferences -->
-          <div class="insight-card">
-            <h3 class="insight-title">🍕 Cuisine Preferences</h3>
-            <div class="insight-content">
-              <div v-for="(count, cuisine) in cuisinePreferences" :key="cuisine" class="preference-item">
-                <span class="preference-label">{{ cuisine }}</span>
-                <div class="preference-bar">
-                  <div class="preference-fill" :style="{ width: (count / maxCuisineCount * 100) + '%' }"></div>
-                </div>
-                <span class="preference-count">{{ count }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Rating Patterns -->
-          <div class="insight-card">
-            <h3 class="insight-title">⭐ Rating Patterns</h3>
-            <div class="insight-content">
-              <div v-for="(count, rating) in ratingPatterns" :key="rating" class="preference-item">
-                <span class="preference-label">{{ rating }} Stars</span>
-                <div class="preference-bar">
-                  <div class="preference-fill" :style="{ width: (count / maxRatingCount * 100) + '%' }"></div>
-                </div>
-                <span class="preference-count">{{ count }}</span>
+      <!-- Recommendation History -->
+      <div class="dashboard-section">
+        <h2 class="section-title">📈 Your Recommendation Journey</h2>
+        <div class="recommendation-timeline">
+          <div v-for="(item, index) in recommendationHistory" :key="index" class="timeline-item">
+            <div class="timeline-date">{{ formatDate(item.date) }}</div>
+            <div class="timeline-content">
+              <div class="timeline-icon">{{ item.icon }}</div>
+              <div class="timeline-text">
+                <strong>{{ item.action }}</strong>
+                <span class="timeline-detail">{{ item.detail }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Smart Recommendations -->
-      <div class="profile-section">
-        <h2 class="section-title">🎯 Smart Recommendations</h2>
-        <div class="recommendations-grid">
-          <div class="recommendation-card">
-            <h3 class="rec-title">Based on Your Patterns</h3>
-            <div class="rec-content">
-              <p class="rec-text">You love <strong>{{ topCuisine }}</strong> on <strong>{{ topDay }}</strong> for <strong>{{ topTime }}</strong></p>
-              <p class="rec-suggestion">Try exploring more {{ topCuisine }} restaurants during these times!</p>
-            </div>
-          </div>
-          
-          <div class="recommendation-card">
-            <h3 class="rec-title">Hidden Gems</h3>
-            <div class="rec-content">
-              <p class="rec-text">You've rated <strong>{{ topCuisine }}</strong> restaurants highly</p>
-              <p class="rec-suggestion">Discover new {{ topCuisine }} spots in your area</p>
-            </div>
-          </div>
-          
-          <div class="recommendation-card">
-            <h3 class="rec-title">Try Something New</h3>
-            <div class="rec-content">
-              <p class="rec-text">You haven't explored <strong>{{ unexploredCuisine }}</strong> much</p>
-              <p class="rec-suggestion">Expand your palate with {{ unexploredCuisine }} cuisine</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Favorite Restaurants -->
-      <div class="profile-section">
-        <h2 class="section-title">❤️ Favorite Restaurants</h2>
-        <div class="favorites-grid">
-          <div v-for="restaurant in favoriteRestaurants" :key="restaurant.id" class="favorite-card">
-            <div class="favorite-image">
-              <span class="restaurant-emoji">🍕</span>
-            </div>
-            <div class="favorite-info">
-              <h3 class="favorite-name">{{ restaurant.name }}</h3>
-              <p class="favorite-cuisine">{{ restaurant.cuisine }}</p>
-              <div class="favorite-rating">
-                <span class="stars">
-                  <span v-for="i in 5" :key="i" class="star">
-                    {{ i <= restaurant.rating ? '★' : '☆' }}
-                  </span>
-                </span>
-                <span class="rating-text">{{ restaurant.rating }}/5</span>
-              </div>
-            </div>
-            <button @click="removeFavorite(restaurant.id)" class="remove-btn">×</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Account Settings -->
-      <div class="profile-section">
-        <h2 class="section-title">⚙️ Account Settings</h2>
-        <div class="settings-form">
-          <div class="form-group">
-            <label class="form-label">Display Name</label>
-            <input v-model="settings.displayName" type="text" class="form-input" placeholder="Enter display name">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input v-model="settings.email" type="email" class="form-input" placeholder="Enter email">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Location</label>
-            <input v-model="settings.location" type="text" class="form-input" placeholder="Enter your city">
-          </div>
-          <button @click="saveSettings" class="save-btn">Save Settings</button>
-        </div>
+      <!-- Back to Search Button -->
+      <div class="back-to-search">
+        <router-link to="/search" class="search-btn">
+          🔍 Back to Search
+        </router-link>
       </div>
     </div>
   </div>
@@ -267,179 +222,57 @@ export default {
   name: 'ProfileView',
   data() {
     return {
-      preferences: {
-        vegetarian: false,
-        vegan: false,
-        glutenFree: false,
-        halal: false,
-        kosher: false,
-        dairyFree: false
+      onboardingStep: 1,
+      userPreferences: {
+        cuisines: [],
+        budget: null,
+        occasions: [],
+        dietary: []
       },
-      cuisines: [
-        { name: 'Italian', active: true },
-        { name: 'Mexican', active: true },
-        { name: 'Chinese', active: false },
-        { name: 'Japanese', active: true },
-        { name: 'Indian', active: false },
-        { name: 'Thai', active: false },
-        { name: 'Mediterranean', active: true },
-        { name: 'American', active: false }
+      cuisineOptions: [
+        { id: 'italian', name: 'Italian', icon: '🍕' },
+        { id: 'mexican', name: 'Mexican', icon: '🌮' },
+        { id: 'chinese', name: 'Chinese', icon: '🥟' },
+        { id: 'japanese', name: 'Japanese', icon: '🍣' },
+        { id: 'indian', name: 'Indian', icon: '🍛' },
+        { id: 'thai', name: 'Thai', icon: '🍜' },
+        { id: 'mediterranean', name: 'Mediterranean', icon: '🍽️' },
+        { id: 'american', name: 'American', icon: '🍔' },
+        { id: 'french', name: 'French', icon: '🥖' },
+        { id: 'greek', name: 'Greek', icon: '🧀' }
       ],
-      recentReviews: [
-        {
-          id: 1,
-          restaurantName: 'Pizza Palace',
-          rating: 5,
-          date: '2 days ago',
-          text: 'Amazing pizza! The crust was perfectly crispy and the toppings were fresh.',
-          tags: ['Great Service', 'Fresh Ingredients', 'Cozy Atmosphere'],
-          visitTime: 'dinner',
-          visitDay: 'Friday',
-          foodType: 'Italian',
-          cuisine: 'Pizza',
-          priceRange: 'moderate',
-          ambiance: 'casual',
-          visitDate: '2024-01-12',
-          visitHour: 19
-        },
-        {
-          id: 2,
-          restaurantName: 'Sushi Express',
-          rating: 4,
-          date: '1 week ago',
-          text: 'Fresh sushi and quick service. Would definitely recommend!',
-          tags: ['Fresh Fish', 'Quick Service'],
-          visitTime: 'lunch',
-          visitDay: 'Tuesday',
-          foodType: 'Japanese',
-          cuisine: 'Sushi',
-          priceRange: 'moderate',
-          ambiance: 'casual',
-          visitDate: '2024-01-05',
-          visitHour: 12
-        },
-        {
-          id: 3,
-          restaurantName: 'Sunrise Diner',
-          rating: 5,
-          date: '3 days ago',
-          text: 'Best breakfast in town! The pancakes are fluffy and the coffee is perfect.',
-          tags: ['Breakfast', 'Coffee', 'Friendly Staff'],
-          visitTime: 'breakfast',
-          visitDay: 'Saturday',
-          foodType: 'American',
-          cuisine: 'Breakfast',
-          priceRange: 'budget',
-          ambiance: 'casual',
-          visitDate: '2024-01-10',
-          visitHour: 8
-        },
-        {
-          id: 4,
-          restaurantName: 'Taco Fiesta',
-          rating: 4,
-          date: '2 weeks ago',
-          text: 'Authentic Mexican flavors and great margaritas!',
-          tags: ['Authentic', 'Margaritas', 'Spicy'],
-          visitTime: 'dinner',
-          visitDay: 'Wednesday',
-          foodType: 'Mexican',
-          cuisine: 'Tacos',
-          priceRange: 'budget',
-          ambiance: 'lively',
-          visitDate: '2023-12-28',
-          visitHour: 20
-        },
-        {
-          id: 5,
-          restaurantName: 'Golden Dragon',
-          rating: 3,
-          date: '1 month ago',
-          text: 'Good Chinese food but service was slow.',
-          tags: ['Chinese', 'Slow Service'],
-          visitTime: 'lunch',
-          visitDay: 'Monday',
-          foodType: 'Chinese',
-          cuisine: 'Asian',
-          priceRange: 'budget',
-          ambiance: 'casual',
-          visitDate: '2023-12-15',
-          visitHour: 13
-        },
-        {
-          id: 6,
-          restaurantName: 'Rooftop Lounge',
-          rating: 5,
-          date: '1 week ago',
-          text: 'Incredible rooftop views and craft cocktails!',
-          tags: ['Rooftop', 'Cocktails', 'Romantic'],
-          visitTime: 'dinner',
-          visitDay: 'Friday',
-          foodType: 'American',
-          cuisine: 'Bar Food',
-          priceRange: 'expensive',
-          ambiance: 'romantic',
-          visitDate: '2024-01-05',
-          visitHour: 21
-        },
-        {
-          id: 7,
-          restaurantName: 'Farm Fresh Market',
-          rating: 4,
-          date: '2 weeks ago',
-          text: 'Healthy options and organic ingredients. Great for brunch!',
-          tags: ['Healthy', 'Organic', 'Brunch'],
-          visitTime: 'brunch',
-          visitDay: 'Sunday',
-          foodType: 'American',
-          cuisine: 'Healthy',
-          priceRange: 'moderate',
-          ambiance: 'casual',
-          visitDate: '2023-12-31',
-          visitHour: 11
-        },
-        {
-          id: 8,
-          restaurantName: 'Midnight Bites',
-          rating: 4,
-          date: '3 weeks ago',
-          text: 'Perfect late-night food! The burgers hit the spot.',
-          tags: ['Late Night', 'Burgers', 'Quick'],
-          visitTime: 'late-night',
-          visitDay: 'Saturday',
-          foodType: 'American',
-          cuisine: 'Burgers',
-          priceRange: 'budget',
-          ambiance: 'casual',
-          visitDate: '2023-12-23',
-          visitHour: 2
-        }
+      budgetOptions: [
+        { id: 'budget', name: 'Budget-Friendly', icon: '💰', range: '$10-$30' },
+        { id: 'moderate', name: 'Moderate', icon: '💸', range: '$30-$70' },
+        { id: 'expensive', name: 'Expensive', icon: '💎', range: '$70+' }
       ],
-      favoriteRestaurants: [
-        {
-          id: 1,
-          name: 'Pizza Palace',
-          cuisine: 'Italian',
-          rating: 5
-        },
-        {
-          id: 2,
-          name: 'Sushi Express',
-          cuisine: 'Japanese',
-          rating: 4
-        },
-        {
-          id: 3,
-          name: 'Taco Fiesta',
-          cuisine: 'Mexican',
-          rating: 4
-        }
+      occasionOptions: [
+        { id: 'casual', name: 'Casual Dining', icon: '🍴' },
+        { id: 'romantic', name: 'Romantic Dinner', icon: '💖' },
+        { id: 'family', name: 'Family Gathering', icon: '👨‍👩‍👧‍👦' },
+        { id: 'business', name: 'Business Lunch', icon: '👔' },
+        { id: 'date', name: 'Date Night', icon: '👫' },
+        { id: 'special', name: 'Special Occasion', icon: '🎉' }
       ],
-      settings: {
-        displayName: 'Foodie',
-        email: 'foodie@example.com',
-        location: 'New York, NY'
-      }
+      dietaryOptions: [
+        { id: 'vegetarian', name: 'Vegetarian', icon: '🥦' },
+        { id: 'vegan', name: 'Vegan', icon: '🌱' },
+        { id: 'glutenFree', name: 'Gluten-Free', icon: '🌾' },
+        { id: 'halal', name: 'Halal', icon: '🕌' },
+        { id: 'kosher', name: 'Kosher', icon: '⚖️' },
+        { id: 'dairyFree', name: 'Dairy-Free', icon: '🥛' }
+      ],
+      hasCompletedOnboarding: false,
+      totalInteractions: 0,
+      learningScore: 0,
+      recommendationAccuracy: 0,
+      recommendationHistory: [
+        { date: '2024-01-15', action: 'New User Onboarding', detail: 'Completed initial preferences quiz' },
+        { date: '2024-01-16', action: 'First Search', detail: 'Searched for "Italian restaurants in New York"' },
+        { date: '2024-01-17', action: 'First Recommendation', detail: 'Received AI-powered Italian restaurant suggestion' },
+        { date: '2024-01-18', action: 'Second Search', detail: 'Searched for "Mexican food in Los Angeles"' },
+        { date: '2024-01-19', action: 'Second Recommendation', detail: 'Received AI-powered Mexican restaurant suggestion' }
+      ]
     }
   },
   computed: {
@@ -524,36 +357,95 @@ export default {
       return unexplored[0] || 'International'
     }
   },
+  mounted() {
+    this.checkExistingPreferences();
+  },
   methods: {
-    formatTime(time) {
-      const timeMap = {
-        'breakfast': 'Breakfast (6AM-11AM)',
-        'brunch': 'Brunch (10AM-2PM)',
-        'lunch': 'Lunch (11AM-3PM)',
-        'dinner': 'Dinner (5PM-9PM)',
-        'late-night': 'Late Night (9PM-2AM)'
+    checkExistingPreferences() {
+      const savedPreferences = localStorage.getItem('belp_user_preferences');
+      if (savedPreferences) {
+        try {
+          this.userPreferences = JSON.parse(savedPreferences);
+          this.hasCompletedOnboarding = true;
+          this.updateMetrics();
+        } catch (e) {
+          console.warn('Failed to load user preferences:', e);
+        }
       }
-      return timeMap[time] || time
     },
-    
-    toggleCuisine(cuisineName) {
-      const cuisine = this.cuisines.find(c => c.name === cuisineName)
-      if (cuisine) {
-        cuisine.active = !cuisine.active
-      }
+    updateMetrics() {
+      // Calculate learning score based on preferences
+      const preferenceCount = Object.values(this.userPreferences).reduce((total, pref) => {
+        return total + (Array.isArray(pref) ? pref.length : (pref ? 1 : 0));
+      }, 0);
+      
+      this.learningScore = Math.min(100, Math.round((preferenceCount / 15) * 100));
+      this.totalInteractions = Math.floor(Math.random() * 50) + 10; // Simulated data
+      this.recommendationAccuracy = Math.min(100, Math.round((this.learningScore + 70) / 2));
     },
     savePreferences() {
-      // TODO: Implement API call to save preferences
-      console.log('Saving preferences:', this.preferences)
-      // Show success message
+      localStorage.setItem('belp_user_preferences', JSON.stringify(this.userPreferences));
+      this.updateMetrics();
+      console.log('Preferences saved:', this.userPreferences);
     },
     removeFavorite(restaurantId) {
       this.favoriteRestaurants = this.favoriteRestaurants.filter(r => r.id !== restaurantId)
     },
     saveSettings() {
-      // TODO: Implement API call to save settings
       console.log('Saving settings:', this.settings)
       // Show success message
+    },
+    togglePreference(category, id) {
+      const index = this.userPreferences[category].indexOf(id);
+      if (index > -1) {
+        this.userPreferences[category].splice(index, 1);
+      } else {
+        this.userPreferences[category].push(id);
+      }
+    },
+    selectBudget(id) {
+      this.userPreferences.budget = id;
+    },
+    nextOnboardingStep() {
+      if (this.onboardingStep < 4) {
+        this.onboardingStep++;
+      }
+    },
+    completeOnboarding() {
+      this.hasCompletedOnboarding = true;
+      this.onboardingStep = 1; // Reset for main profile view
+      this.userPreferences = {
+        cuisines: [],
+        budget: null,
+        occasions: [],
+        dietary: []
+      };
+      // TODO: Implement actual onboarding completion logic (e.g., save preferences)
+      console.log('Onboarding completed. User preferences:', this.userPreferences);
+    },
+    editPreferences() {
+      this.hasCompletedOnboarding = false;
+      this.onboardingStep = 1;
+    },
+    getCuisineName(id) {
+      const cuisine = this.cuisineOptions.find(c => c.id === id);
+      return cuisine ? cuisine.name : id;
+    },
+    getBudgetName(id) {
+      const budget = this.budgetOptions.find(b => b.id === id);
+      return budget ? budget.name : id;
+    },
+    getOccasionName(id) {
+      const occasion = this.occasionOptions.find(o => o.id === id);
+      return occasion ? occasion.name : id;
+    },
+    getDietaryName(id) {
+      const dietary = this.dietaryOptions.find(d => d.id === id);
+      return dietary ? dietary.name : id;
+    },
+    formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
     }
   }
 }
@@ -1029,6 +921,377 @@ export default {
   opacity: 0.5;
 }
 
+/* Onboarding Styles */
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #07450C 0%, #0a5a0f 100%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.onboarding-container {
+  background: white;
+  border-radius: 20px;
+  padding: 3rem;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+.onboarding-header {
+  margin-bottom: 2rem;
+}
+
+.onboarding-title {
+  font-size: 2.5rem;
+  color: #07450C;
+  margin: 0 0 0.5rem 0;
+  font-weight: bold;
+}
+
+.onboarding-subtitle {
+  font-size: 1.1rem;
+  color: #666;
+  margin: 0;
+}
+
+.onboarding-progress {
+  margin-bottom: 2rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #07450C, #0a5a0f);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.onboarding-step h2 {
+  color: #07450C;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+}
+
+.onboarding-step p {
+  color: #666;
+  margin: 0 0 1.5rem 0;
+}
+
+.preference-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.preference-btn {
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.preference-btn:hover {
+  border-color: #07450C;
+  background: rgba(7, 69, 12, 0.05);
+}
+
+.preference-btn.active {
+  border-color: #07450C;
+  background: #07450C;
+  color: white;
+}
+
+.budget-options {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.budget-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.budget-btn:hover {
+  border-color: #07450C;
+  background: rgba(7, 69, 12, 0.05);
+}
+
+.budget-btn.active {
+  border-color: #07450C;
+  background: #07450C;
+  color: white;
+}
+
+.budget-icon {
+  font-size: 1.5rem;
+}
+
+.budget-name {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.budget-range {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.step-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: #07450C;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0a5a0f;
+  transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.btn-secondary:hover {
+  background: #d0d0d0;
+}
+
+/* Dashboard Styles */
+.dashboard-section {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 24px rgba(7, 69, 12, 0.1);
+  border: 1px solid rgba(7, 69, 12, 0.1);
+}
+
+.section-title {
+  color: #07450C;
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.taste-profile {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.profile-label {
+  font-weight: bold;
+  color: #07450C;
+  min-width: 120px;
+}
+
+.profile-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.profile-tag {
+  background: #07450C;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.profile-value {
+  color: #333;
+  font-weight: 500;
+}
+
+.edit-btn {
+  padding: 0.75rem 1.5rem;
+  background: #07450C;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.edit-btn:hover {
+  background: #0a5a0f;
+  transform: translateY(-2px);
+}
+
+.learning-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.metric {
+  text-align: center;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #07450C;
+  margin-bottom: 0.5rem;
+}
+
+.metric-label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.recommendation-timeline {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border-left: 3px solid #07450C;
+  margin-left: 1rem;
+  position: relative;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -0.5rem;
+  top: 1.5rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: #07450C;
+  border-radius: 50%;
+}
+
+.timeline-date {
+  font-size: 0.8rem;
+  color: #666;
+  min-width: 80px;
+}
+
+.timeline-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.timeline-icon {
+  font-size: 1.2rem;
+}
+
+.timeline-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.timeline-text strong {
+  color: #07450C;
+}
+
+.timeline-detail {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.back-to-search {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.search-btn {
+  display: inline-block;
+  padding: 1rem 2rem;
+  background: #07450C;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+  background: #0a5a0f;
+  transform: translateY(-2px);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .profile-container {
@@ -1061,6 +1324,37 @@ export default {
   
   .review-rating {
     align-items: flex-start;
+  }
+
+  .onboarding-container {
+    padding: 2rem 1.5rem;
+    margin: 1rem;
+  }
+  
+  .onboarding-title {
+    font-size: 2rem;
+  }
+  
+  .preference-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+  
+  .dashboard-section {
+    padding: 1.5rem;
+  }
+  
+  .learning-metrics {
+    grid-template-columns: 1fr;
+  }
+  
+  .profile-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .profile-label {
+    min-width: auto;
   }
 }
 
