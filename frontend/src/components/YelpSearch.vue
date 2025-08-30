@@ -578,7 +578,23 @@ export default {
     },
     checkProfileStatus() {
       const preferences = localStorage.getItem('belp_user_preferences')
-      this.hasProfile = !!preferences
+      if (preferences) {
+        try {
+          const parsedPreferences = JSON.parse(preferences)
+          // Check if user has meaningful preferences (not empty)
+          const hasPreferences = parsedPreferences.cuisines.length > 0 || 
+                               parsedPreferences.budget || 
+                               parsedPreferences.occasions.length > 0 || 
+                               parsedPreferences.dietary.length > 0
+          this.hasProfile = hasPreferences
+        } catch (e) {
+          console.warn('Failed to parse user preferences:', e)
+          this.hasProfile = false
+        }
+      } else {
+        this.hasProfile = false
+      }
+      
       if (this.hasProfile) {
         this.updateDiscoveryProgress()
       }

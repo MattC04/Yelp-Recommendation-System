@@ -523,7 +523,24 @@ export default {
           this.updateMetrics();
         } catch (e) {
           console.warn('Failed to load user preferences:', e);
+          // If corrupted, treat as new user
+          this.hasCompletedOnboarding = false;
+          this.userPreferences = {
+            cuisines: [],
+            budget: null,
+            occasions: [],
+            dietary: []
+          };
         }
+      } else {
+        // No saved preferences = new user
+        this.hasCompletedOnboarding = false;
+        this.userPreferences = {
+          cuisines: [],
+          budget: null,
+          occasions: [],
+          dietary: []
+        };
       }
     },
     updateMetrics() {
@@ -647,19 +664,22 @@ export default {
     },
     completeOnboarding() {
       this.hasCompletedOnboarding = true;
-      this.onboardingStep = 1; // Reset for main profile view
-      this.userPreferences = {
-        cuisines: [],
-        budget: null,
-        occasions: [],
-        dietary: []
-      };
-      // TODO: Implement actual onboarding completion logic (e.g., save preferences)
+      // Save preferences to localStorage
+      localStorage.setItem('belp_user_preferences', JSON.stringify(this.userPreferences));
+      // Update metrics and journey data
+      this.updateMetrics();
       console.log('Onboarding completed. User preferences:', this.userPreferences);
+      // Show success message
+      this.showSuccessMessage('🎉 Welcome to BELP! Your profile has been created.');
     },
     editPreferences() {
       this.hasCompletedOnboarding = false;
       this.onboardingStep = 1;
+      // Keep existing preferences for editing
+    },
+    showSuccessMessage(message) {
+      // Simple success message - could be enhanced with a toast component
+      alert(message); // Replace with proper toast notification later
     },
     getCuisineName(id) {
       const cuisine = this.cuisineOptions.find(c => c.id === id);
