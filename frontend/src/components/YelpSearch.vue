@@ -1,10 +1,45 @@
 <template>
   <div class="search-container">
-    <!-- Logo and Title Section -->
-    <div class="logo-section" v-if="false">
-      <div class="logo">🍽️</div>
-      <h1 class="app-title">BELP</h1>
+    <!-- Personalization Header -->
+    <div class="personalization-header">
+      <div class="personalization-info">
+        <h1 class="app-title" style="color: #07450C">🍽️ BELP</h1>
+        <p class="app-subtitle">AI-Powered Restaurant Recommendations</p>
+      </div>
+      <div class="personalization-actions">
+        <router-link to="/profile" class="profile-btn">
+          📊 Your Profile
+        </router-link>
+        <button v-if="!hasProfile" @click="createProfile" class="create-profile-btn">
+          ✨ Create Profile
+        </button>
+      </div>
     </div>
+
+    <!-- Progressive Discovery Indicator -->
+    <div v-if="hasProfile" class="discovery-indicator">
+      <div class="discovery-progress">
+        <div class="progress-circle">
+          <svg viewBox="0 0 36 36" class="progress-ring">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e0e0e0" stroke-width="2"/>
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#07450C" stroke-width="2" :stroke-dasharray="discoveryProgress + ' 100'" stroke-dashoffset="25"/>
+          </svg>
+          <div class="progress-text">{{ discoveryProgress }}%</div>
+        </div>
+        <div class="discovery-info">
+          <h3>🎯 AI Learning Your Tastes</h3>
+          <p>{{ getDiscoveryMessage() }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main App Content -->
+    <div class="main-content">
+      <!-- Logo and Title Section -->
+      <div class="logo-section" v-if="false">
+        <div class="logo">🍽️</div>
+        <h1 class="app-title">BELP</h1>
+      </div>
 
     <!-- Toolbar -->
     <div class="toolbar">
@@ -148,7 +183,7 @@
     <div v-else-if="!loading && !error && results.length === 0" class="empty-state">
       <div class="empty-emoji">🔎</div>
       <h3 class="empty-title">Start exploring great places</h3>
-      <p class="empty-text">Try a cuisine like “sushi” or an occasion like “date night”, and set your location.</p>
+      <p class="empty-text">Try a cuisine like "sushi" or an occasion like "date night", and set your location.</p>
     </div>
 
     <!-- Results Section -->
@@ -290,6 +325,7 @@
 
     <!-- Toast element -->
     <div v-if="toast.show" class="toast show">{{ toast.text }}</div>
+    </div>
   </div>
 </template>
 
@@ -325,7 +361,10 @@ export default {
         { id: 'family', label: 'Family Friendly', icon: '👨‍👩‍👧‍👦' }
       ],
       showWhyForId: null,
-      toast: { show: false, text: '' }
+      toast: { show: false, text: '' },
+      // Profile status
+      hasProfile: false,
+      discoveryProgress: 0
     }
   },
   computed: {
@@ -532,13 +571,41 @@ export default {
     getInitials(name) {
       const parts = String(name || '').split(' ').filter(Boolean)
       return (parts[0]?.[0] || 'R').toUpperCase() + (parts[1]?.[0] || '')
+    },
+    // Profile methods
+    createProfile() {
+      this.$router.push('/profile')
+    },
+    checkProfileStatus() {
+      const preferences = localStorage.getItem('belp_user_preferences')
+      this.hasProfile = !!preferences
+      if (this.hasProfile) {
+        this.updateDiscoveryProgress()
+      }
+    },
+    updateDiscoveryProgress() {
+      // Simple progress calculation based on interactions
+      const interactions = parseInt(localStorage.getItem('belp_total_interactions') || '0')
+      this.discoveryProgress = Math.min(100, Math.round((interactions / 20) * 100))
+    },
+    getDiscoveryMessage() {
+      if (this.discoveryProgress < 25) {
+        return "We're just getting to know you. Try searching for different cuisines!"
+      } else if (this.discoveryProgress < 50) {
+        return "Great progress! We're learning your taste preferences."
+      } else if (this.discoveryProgress < 75) {
+        return "Excellent! We're getting really good at matching your preferences."
+      } else {
+        return "Amazing! We've mastered your taste profile. Enjoy personalized recommendations!"
+      }
+    },
+    mounted() {
+      this.checkProfileStatus()
+      window.addEventListener('scroll', this.handleScroll)
+    },
+    beforeUnmount() {
+      window.removeEventListener('scroll', this.handleScroll)
     }
-  },
-  mounted() {
-    window.addEventListener('scroll', this.handleScroll)
-  },
-  beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll)
   }
 }
 </script>
@@ -1662,5 +1729,114 @@ avatar, .avatar { width: 40px; height: 40px; border-radius: 50%; background: rgb
 /* Toast */
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #07450C; color: white; padding: 0.5rem 0.9rem; border-radius: 999px; box-shadow: 0 8px 18px rgba(0,0,0,0.15); opacity: 0; transition: opacity 0.2s ease; }
 .toast.show { opacity: 1; }
+
+/* Personalization Header */
+.personalization-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(7, 69, 12, 0.05), rgba(7, 69, 12, 0.02));
+  border-radius: 16px;
+  margin-bottom: 2rem;
+}
+
+.personalization-info h1 {
+  color: #07450C;
+  margin: 0 0 0.5rem 0;
+  font-size: 2.5rem;
+}
+
+.app-subtitle {
+  color: #666;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.personalization-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.profile-btn, .create-profile-btn {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #07450C;
+  border-radius: 8px;
+  background: white;
+  color: #07450C;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.profile-btn:hover, .create-profile-btn:hover {
+  background: #07450C;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Discovery Indicator */
+.discovery-indicator {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 24px rgba(7, 69, 12, 0.1);
+  border: 1px solid rgba(7, 69, 12, 0.1);
+}
+
+.discovery-progress {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.progress-circle {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #07450C;
+}
+
+.discovery-info h3 {
+  color: #07450C;
+  margin: 0 0 0.5rem 0;
+}
+
+.discovery-info p {
+  color: #666;
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .personalization-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .discovery-progress {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+}
 </style>
 
