@@ -193,14 +193,125 @@
       <!-- Recommendation History -->
       <div class="dashboard-section">
         <h2 class="section-title">📈 Your Recommendation Journey</h2>
-        <div class="recommendation-timeline">
-          <div v-for="(item, index) in recommendationHistory" :key="index" class="timeline-item">
-            <div class="timeline-date">{{ formatDate(item.date) }}</div>
-            <div class="timeline-content">
-              <div class="timeline-icon">{{ item.icon }}</div>
-              <div class="timeline-text">
-                <strong>{{ item.action }}</strong>
-                <span class="timeline-detail">{{ item.detail }}</span>
+        <div class="journey-stats">
+          <div class="journey-stat">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ totalSearches }}</div>
+              <div class="stat-label">Total Searches</div>
+            </div>
+          </div>
+          <div class="journey-stat">
+            <div class="stat-icon">❤️</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ totalLikes }}</div>
+              <div class="stat-label">Restaurants Liked</div>
+            </div>
+          </div>
+          <div class="journey-stat">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-info">
+              <div class="stat-value">{{ averageRating }}</div>
+              <div class="stat-label">Avg Rating Given</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="journey-tabs">
+          <button 
+            v-for="tab in journeyTabs" 
+            :key="tab.id"
+            @click="activeJourneyTab = tab.id"
+            :class="['journey-tab', { active: activeJourneyTab === tab.id }]"
+          >
+            {{ tab.icon }} {{ tab.label }}
+          </button>
+        </div>
+
+        <!-- AI Learning Milestones -->
+        <div v-if="activeJourneyTab === 'milestones'" class="journey-content">
+          <div class="milestones-grid">
+            <div v-for="milestone in aiMilestones" :key="milestone.id" class="milestone-card">
+              <div class="milestone-icon">{{ milestone.icon }}</div>
+              <div class="milestone-content">
+                <h4 class="milestone-title">{{ milestone.title }}</h4>
+                <p class="milestone-description">{{ milestone.description }}</p>
+                <div class="milestone-date">{{ milestone.date }}</div>
+                <div class="milestone-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill" :style="{ width: milestone.progress + '%' }"></div>
+                  </div>
+                  <span class="progress-text">{{ milestone.progress }}% Complete</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Patterns -->
+        <div v-if="activeJourneyTab === 'patterns'" class="journey-content">
+          <div class="patterns-grid">
+            <div class="pattern-card">
+              <h4>🕐 Time Preferences</h4>
+              <div class="pattern-chart">
+                <div v-for="(count, time) in timePatterns" :key="time" class="time-bar">
+                  <span class="time-label">{{ time }}</span>
+                  <div class="bar-container">
+                    <div class="bar-fill" :style="{ height: (count / maxTimeCount * 100) + '%' }"></div>
+                  </div>
+                  <span class="count-label">{{ count }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="pattern-card">
+              <h4>📅 Day Preferences</h4>
+              <div class="pattern-chart">
+                <div v-for="(count, day) in dayPatterns" :key="day" class="day-bar">
+                  <span class="day-label">{{ day }}</span>
+                  <div class="bar-container">
+                    <div class="bar-fill" :style="{ height: (count / maxDayCount * 100) + '%' }"></div>
+                  </div>
+                  <span class="count-label">{{ count }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Insights -->
+        <div v-if="activeJourneyTab === 'insights'" class="journey-content">
+          <div class="insights-grid">
+            <div v-for="insight in aiInsights" :key="insight.id" class="insight-card">
+              <div class="insight-header">
+                <span class="insight-icon">{{ insight.icon }}</span>
+                <span class="insight-type">{{ insight.type }}</span>
+              </div>
+              <h4 class="insight-title">{{ insight.title }}</h4>
+              <p class="insight-text">{{ insight.text }}</p>
+              <div class="insight-actions">
+                <button class="insight-btn primary">{{ insight.primaryAction }}</button>
+                <button class="insight-btn secondary">{{ insight.secondaryAction }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity Timeline -->
+        <div v-if="activeJourneyTab === 'timeline'" class="journey-content">
+          <div class="activity-timeline">
+            <div v-for="(activity, index) in recentActivities" :key="index" class="activity-item">
+              <div class="activity-time">{{ formatTime(activity.timestamp) }}</div>
+              <div class="activity-content">
+                <div class="activity-icon">{{ activity.icon }}</div>
+                <div class="activity-details">
+                  <strong>{{ activity.action }}</strong>
+                  <span class="activity-context">{{ activity.context }}</span>
+                  <div class="activity-meta">
+                    <span class="meta-item">{{ activity.cuisine }}</span>
+                    <span class="meta-item">{{ activity.location }}</span>
+                    <span class="meta-item">{{ activity.rating }}⭐</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -272,6 +383,48 @@ export default {
         { date: '2024-01-17', action: 'First Recommendation', detail: 'Received AI-powered Italian restaurant suggestion' },
         { date: '2024-01-18', action: 'Second Search', detail: 'Searched for "Mexican food in Los Angeles"' },
         { date: '2024-01-19', action: 'Second Recommendation', detail: 'Received AI-powered Mexican restaurant suggestion' }
+      ],
+      totalSearches: 0,
+      totalLikes: 0,
+      averageRating: 0,
+      activeJourneyTab: 'milestones',
+      journeyTabs: [
+        { id: 'milestones', label: 'Milestones', icon: '📜' },
+        { id: 'patterns', label: 'Patterns', icon: '📊' },
+        { id: 'insights', label: 'Insights', icon: '🧠' },
+        { id: 'timeline', label: 'Timeline', icon: '⏰' }
+      ],
+      aiMilestones: [
+        { id: 'milestone1', title: 'First Search', description: 'Searched for Italian restaurants in New York', date: '2024-01-16', progress: 100 },
+        { id: 'milestone2', title: 'First Recommendation', description: 'Received AI-powered Italian restaurant suggestion', date: '2024-01-17', progress: 100 },
+        { id: 'milestone3', title: 'Second Search', description: 'Searched for Mexican food in Los Angeles', date: '2024-01-18', progress: 100 },
+        { id: 'milestone4', title: 'Second Recommendation', description: 'Received AI-powered Mexican restaurant suggestion', date: '2024-01-19', progress: 100 }
+      ],
+      timePatterns: {
+        'Morning': 10,
+        'Afternoon': 15,
+        'Evening': 20,
+        'Late Night': 5
+      },
+      dayPatterns: {
+        'Monday': 8,
+        'Tuesday': 10,
+        'Wednesday': 12,
+        'Thursday': 15,
+        'Friday': 20,
+        'Saturday': 18,
+        'Sunday': 10
+      },
+      aiInsights: [
+        { id: 'insight1', type: 'Cuisine', title: 'Your Favorite Italian Cuisine', text: 'You have a strong preference for Italian cuisine, particularly Italian restaurants in New York.', primaryAction: 'Explore More Italian Restaurants', secondaryAction: 'Try a New Italian Cuisine' },
+        { id: 'insight2', type: 'Occasion', title: 'Your Dining Preferences', text: 'You prefer casual dining experiences, particularly on weekends. This helps us understand your lifestyle.', primaryAction: 'Discover Casual Dining', secondaryAction: 'Plan a Special Occasion' },
+        { id: 'insight3', type: 'Dietary', title: 'Your Dietary Restrictions', text: 'You are vegetarian and prefer halal restaurants. This helps us tailor recommendations to your needs.', primaryAction: 'Find Vegetarian Options', secondaryAction: 'Explore Halal Restaurants' }
+      ],
+      recentActivities: [
+        { timestamp: '2024-01-19T10:00:00Z', action: 'Searched for "Japanese sushi in Tokyo"', context: 'Searched for a specific cuisine', cuisine: 'Japanese', location: 'Tokyo', rating: 4.5 },
+        { timestamp: '2024-01-19T11:30:00Z', action: 'Liked a restaurant', context: 'Liked a restaurant in your favorite cuisine', cuisine: 'Italian', location: 'Rome', rating: 5 },
+        { timestamp: '2024-01-19T14:00:00Z', action: 'Searched for "Thai food in Bangkok"', context: 'Searched for a specific cuisine', cuisine: 'Thai', location: 'Bangkok', rating: 4.2 },
+        { timestamp: '2024-01-19T16:00:00Z', action: 'Searched for "Mexican tacos in Mexico City"', context: 'Searched for a specific cuisine', cuisine: 'Mexican', location: 'Mexico City', rating: 4.8 }
       ]
     }
   },
@@ -318,11 +471,11 @@ export default {
     
     // Get max counts for normalization
     maxTimeCount() {
-      return Math.max(...Object.values(this.timePreferences))
+      return Math.max(...Object.values(this.timePatterns));
     },
     
     maxDayCount() {
-      return Math.max(...Object.values(this.dayPreferences))
+      return Math.max(...Object.values(this.dayPatterns));
     },
     
     maxCuisineCount() {
@@ -381,7 +534,88 @@ export default {
       
       this.learningScore = Math.min(100, Math.round((preferenceCount / 15) * 100));
       this.totalInteractions = Math.floor(Math.random() * 50) + 10; // Simulated data
+      
+      // Calculate journey statistics
+      this.totalSearches = Math.floor(Math.random() * 30) + 5;
+      this.totalLikes = Math.floor(this.totalSearches * 0.7); // 70% like rate
+      this.averageRating = (Math.random() * 1.5 + 3.5).toFixed(1); // 3.5-5.0 range
+      
       this.recommendationAccuracy = Math.min(100, Math.round((this.learningScore + 70) / 2));
+      
+      // Update AI milestones based on progress
+      this.updateMilestones();
+      this.updateInsights();
+    },
+    updateMilestones() {
+      const milestones = [
+        { id: 'first_search', title: 'First Search', description: 'Started your culinary journey', progress: 100 },
+        { id: 'first_like', title: 'First Like', description: 'Found your first favorite restaurant', progress: this.totalLikes > 0 ? 100 : 0 },
+        { id: 'cuisine_explorer', title: 'Cuisine Explorer', description: 'Tried 3+ different cuisines', progress: Math.min(100, (this.userPreferences.cuisines.length / 3) * 100) },
+        { id: 'ai_learner', title: 'AI Learner', description: 'AI accuracy reached 80%', progress: Math.min(100, this.recommendationAccuracy) },
+        { id: 'regular_user', title: 'Regular User', description: 'Completed 10+ searches', progress: Math.min(100, (this.totalSearches / 10) * 100) }
+      ];
+      
+      this.aiMilestones = milestones.map(m => ({
+        ...m,
+        date: this.getRandomRecentDate(),
+        icon: this.getMilestoneIcon(m.id)
+      }));
+    },
+    updateInsights() {
+      const insights = [
+        {
+          id: 'cuisine_insight',
+          type: 'Cuisine',
+          title: `Your ${this.getTopCuisine()} Preference`,
+          text: `You've shown a strong preference for ${this.getTopCuisine()} cuisine. We're using this to refine your recommendations.`,
+          primaryAction: 'Explore More ' + this.getTopCuisine(),
+          secondaryAction: 'Try Something New'
+        },
+        {
+          id: 'time_insight',
+          type: 'Timing',
+          title: 'Your Dining Schedule',
+          text: `You prefer dining during ${this.getTopTime()} hours. This helps us suggest restaurants that match your lifestyle.`,
+          primaryAction: 'Find ' + this.getTopTime() + ' Options',
+          secondaryAction: 'Explore Other Times'
+        },
+        {
+          id: 'budget_insight',
+          type: 'Budget',
+          title: 'Your Spending Pattern',
+          text: `You typically choose ${this.getBudgetName(this.userPreferences.budget)} restaurants. We're finding great options in your range.`,
+          primaryAction: 'Find Similar Options',
+          secondaryAction: 'Explore Other Ranges'
+        }
+      ];
+      
+      this.aiInsights = insights;
+    },
+    getTopCuisine() {
+      if (this.userPreferences.cuisines.length === 0) return 'Italian';
+      const cuisine = this.cuisineOptions.find(c => c.id === this.userPreferences.cuisines[0]);
+      return cuisine ? cuisine.name : 'Italian';
+    },
+    getTopTime() {
+      const times = Object.entries(this.timePatterns);
+      const topTime = times.reduce((a, b) => a[1] > b[1] ? a : b);
+      return topTime[0];
+    },
+    getMilestoneIcon(milestoneId) {
+      const icons = {
+        'first_search': '🔍',
+        'first_like': '❤️',
+        'cuisine_explorer': '🌍',
+        'ai_learner': '🤖',
+        'regular_user': '👑'
+      };
+      return icons[milestoneId] || '🏆';
+    },
+    getRandomRecentDate() {
+      const days = Math.floor(Math.random() * 30) + 1;
+      const date = new Date();
+      date.setDate(date.getDate() - days);
+      return date.toLocaleDateString();
     },
     savePreferences() {
       localStorage.setItem('belp_user_preferences', JSON.stringify(this.userPreferences));
@@ -446,6 +680,10 @@ export default {
     formatDate(dateString) {
       const date = new Date(dateString);
       return date.toLocaleDateString();
+    },
+    formatTime(timestamp) {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString();
     }
   }
 }
@@ -1292,7 +1530,353 @@ export default {
   transform: translateY(-2px);
 }
 
-/* Responsive Design */
+/* Journey Styles */
+.journey-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.journey-stat {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.stat-icon {
+  font-size: 2rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #07450C;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.journey-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #e0e0e0;
+  overflow-x: auto;
+}
+
+.journey-tab {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: none;
+  color: #666;
+  cursor: pointer;
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.journey-tab:hover {
+  color: #07450C;
+}
+
+.journey-tab.active {
+  color: #07450C;
+  border-bottom-color: #07450C;
+}
+
+.journey-content {
+  min-height: 300px;
+}
+
+/* Milestones */
+.milestones-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.milestone-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.milestone-icon {
+  font-size: 2rem;
+  color: #07450C;
+}
+
+.milestone-content {
+  flex: 1;
+}
+
+.milestone-title {
+  color: #07450C;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.milestone-description {
+  color: #666;
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.milestone-date {
+  color: #999;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.milestone-progress .progress-bar {
+  height: 6px;
+  margin-bottom: 0.25rem;
+}
+
+.milestone-progress .progress-text {
+  font-size: 0.8rem;
+  color: #07450C;
+  font-weight: 600;
+}
+
+/* Patterns */
+.patterns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.pattern-card {
+  background: white;
+  padding: 1.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.pattern-card h4 {
+  color: #07450C;
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+}
+
+.pattern-chart {
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  height: 150px;
+}
+
+.time-bar, .day-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.time-label, .day-label {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: center;
+}
+
+.bar-container {
+  width: 100%;
+  height: 100px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: linear-gradient(to top, #07450C, #0a5a0f);
+  transition: height 0.3s ease;
+}
+
+.count-label {
+  font-size: 0.8rem;
+  color: #07450C;
+  font-weight: 600;
+}
+
+/* Insights */
+.insights-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.insight-card {
+  background: white;
+  padding: 1.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.insight-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.insight-icon {
+  font-size: 1.2rem;
+}
+
+.insight-type {
+  background: rgba(7, 69, 12, 0.1);
+  color: #07450C;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.insight-title {
+  color: #07450C;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.insight-text {
+  color: #666;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.insight-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.insight-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.insight-btn.primary {
+  background: #07450C;
+  color: white;
+}
+
+.insight-btn.primary:hover {
+  background: #0a5a0f;
+}
+
+.insight-btn.secondary {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.insight-btn.secondary:hover {
+  background: #e0e0e0;
+}
+
+/* Activity Timeline */
+.activity-timeline {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border-left: 3px solid #07450C;
+  margin-left: 1rem;
+  position: relative;
+  background: white;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 1rem;
+}
+
+.activity-item::before {
+  content: '';
+  position: absolute;
+  left: -0.5rem;
+  top: 1.5rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: #07450C;
+  border-radius: 50%;
+}
+
+.activity-time {
+  font-size: 0.8rem;
+  color: #666;
+  min-width: 80px;
+  font-weight: 600;
+}
+
+.activity-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.activity-icon {
+  font-size: 1.2rem;
+  color: #07450C;
+}
+
+.activity-details {
+  flex: 1;
+}
+
+.activity-details strong {
+  color: #07450C;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.activity-context {
+  color: #666;
+  font-size: 0.9rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.activity-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  background: rgba(7, 69, 12, 0.1);
+  color: #07450C;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
   .profile-container {
     padding: 1rem;
@@ -1355,6 +1939,36 @@ export default {
   
   .profile-label {
     min-width: auto;
+  }
+
+  .journey-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .journey-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .journey-tab {
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  .patterns-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .pattern-chart {
+    height: 120px;
+  }
+  
+  .insight-actions {
+    flex-direction: column;
+  }
+  
+  .activity-meta {
+    flex-direction: column;
+    gap: 0.5rem;
   }
 }
 
