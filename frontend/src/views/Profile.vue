@@ -516,26 +516,34 @@ export default {
     this.checkExistingPreferences();
   },
   methods: {
-    checkExistingPreferences() {
-      const savedPreferences = localStorage.getItem('belp_user_preferences');
-      if (savedPreferences) {
-        try {
-          this.userPreferences = JSON.parse(savedPreferences);
-          this.hasCompletedOnboarding = true;
-          this.updateMetrics();
-        } catch (e) {
-          console.warn('Failed to load user preferences:', e);
-          // If corrupted, treat as new user
-          this.hasCompletedOnboarding = false;
-          this.userPreferences = {
-            cuisines: [],
-            budget: null,
-            occasions: [],
-            dietary: []
-          };
+          checkExistingPreferences() {
+        const encryptedData = localStorage.getItem('belp_user_preferences_encrypted');
+        if (encryptedData) {
+          try {
+            const decryptedData = securityService.decryptData(encryptedData);
+            if (decryptedData) {
+              // Validate the decrypted data
+              const validation = securityService.validatePreferences(decryptedData);
+              if (validation.isValid) {
+                this.userPreferences = decryptedData;
+                this.hasCompletedOnboarding = true;
+                this.updateMetrics();
+              } else {
+                console.warn('Invalid preferences data:', validation.errors);
+                this.resetToNewUser();
+              }
+            } else {
+              this.resetToNewUser();
+            }
+          } catch (e) {
+            console.warn('Failed to decrypt user preferences:', e);
+            this.resetToNewUser();
+          }
+        } else {
+          this.resetToNewUser();
         }
-      } else {
-        // No saved preferences = new user
+      },
+      resetToNewUser() {
         this.hasCompletedOnboarding = false;
         this.userPreferences = {
           cuisines: [],
@@ -543,8 +551,7 @@ export default {
           occasions: [],
           dietary: []
         };
-      }
-    },
+      },
     updateMetrics() {
       // Calculate learning score based on preferences
       const preferenceCount = Object.values(this.userPreferences).reduce((total, pref) => {
@@ -648,14 +655,34 @@ export default {
       console.log('Saving settings:', this.settings)
       // Show success message
     },
-    togglePreference(category, id) {
-      const index = this.userPreferences[category].indexOf(id);
-      if (index > -1) {
-        this.userPreferences[category].splice(index, 1);
-      } else {
-        this.userPreferences[category].push(id);
-      }
-    },
+          togglePreference(category, id) {
+        // Validate the preference ID
+        if (!id || typeof id !== 'string') {
+          this.showErrorMessage('Invalid preference selection');
+          return;
+        }
+        
+        const index = this.userPreferences[category].indexOf(id);
+        if (index > -1) {
+          this.userPreferences[category].splice(index, 1);
+        } else {
+          // Check limits before adding
+          if (category === 'cuisines' && this.userPreferences.cuisines.length >= 15) {
+            this.showErrorMessage('Maximum 15 cuisines allowed');
+            return;
+          }
+          if (category === 'occasions' && this.userPreferences.occasions.length >= 10) {
+            this.showErrorMessage('Maximum 10 occasions allowed');
+            return;
+          }
+          if (category === 'dietary' && this.userPreferences.dietary.length >= 8) {
+            this.showErrorMessage('Maximum 8 dietary preferences allowed');
+            return;
+          }
+          
+          this.userPreferences[category].push(id);
+        }
+      },
     selectBudget(id) {
       this.userPreferences.budget = id;
     },
@@ -664,16 +691,29 @@ export default {
         this.onboardingStep++;
       }
     },
-    completeOnboarding() {
-      this.hasCompletedOnboarding = true;
-      // Save preferences to localStorage
-      localStorage.setItem('belp_user_preferences', JSON.stringify(this.userPreferences));
-      // Update metrics and journey data
-      this.updateMetrics();
-      console.log('Onboarding completed. User preferences:', this.userPreferences);
-      // Show success message
-      this.showSuccessMessage('🎉 Welcome to BELP! Your profile has been created.');
-    },
+          completeOnboarding() {
+        // Validate preferences before saving
+        const validation = securityService.validatePreferences(this.userPreferences);
+        if (!validation.isValid) {
+          this.showErrorMessage(`Please fix the following errors: ${validation.errors.join(', ')}`);
+          return;
+        }
+        
+        this.hasCompletedOnboarding = true;
+        
+        // Encrypt and save preferences to localStorage
+        const encryptedData = securityService.encryptData(this.userPreferences);
+        if (encryptedData) {
+          localStorage.setItem('belp_user_preferences_encrypted', encryptedData);
+          // Update metrics and journey data
+          this.updateMetrics();
+          console.log('Onboarding completed. User preferences encrypted and saved.');
+          this.showSuccessMessage('🎉 Welcome to BELP! Your profile has been created securely.');
+        } else {
+          this.showErrorMessage('Failed to save profile securely. Please try again.');
+          this.hasCompletedOnboarding = false;
+        }
+      },
     editPreferences() {
       this.hasCompletedOnboarding = false;
       this.onboardingStep = 1;
@@ -682,6 +722,10 @@ export default {
     showSuccessMessage(message) {
       // Simple success message - could be enhanced with a toast component
       alert(message); // Replace with proper toast notification later
+    },
+    showErrorMessage(message) {
+      // Simple error message - could be enhanced with a toast component
+      alert('Error: ' + message); // Replace with proper toast notification later
     },
     getCuisineName(id) {
       const cuisine = this.cuisineOptions.find(c => c.id === id);

@@ -408,6 +408,25 @@ export default {
   },
   methods: {
     async search() {
+      // Validate inputs before searching
+      if (this.query.trim()) {
+        const queryValidation = securityService.validateSearchQuery(this.query);
+        if (!queryValidation.isValid) {
+          this.showToast(`Search error: ${queryValidation.error}`);
+          return;
+        }
+        this.query = queryValidation.sanitized;
+      }
+      
+      if (this.location.trim()) {
+        const locationValidation = securityService.validateLocation(this.location);
+        if (!locationValidation.isValid) {
+          this.showToast(`Location error: ${locationValidation.error}`);
+          return;
+        }
+        this.location = locationValidation.sanitized;
+      }
+      
       // Prefer location-based search when location is provided; otherwise use craving
       if (this.location && this.location.trim().length > 0) {
         await this.searchByLocation()
@@ -577,18 +596,22 @@ export default {
       this.$router.push('/profile')
     },
     checkProfileStatus() {
-      const preferences = localStorage.getItem('belp_user_preferences')
-      if (preferences) {
+      const encryptedData = localStorage.getItem('belp_user_preferences_encrypted')
+      if (encryptedData) {
         try {
-          const parsedPreferences = JSON.parse(preferences)
-          // Check if user has meaningful preferences (not empty)
-          const hasPreferences = parsedPreferences.cuisines.length > 0 || 
-                               parsedPreferences.budget || 
-                               parsedPreferences.occasions.length > 0 || 
-                               parsedPreferences.dietary.length > 0
-          this.hasProfile = hasPreferences
+          const decryptedData = securityService.decryptData(encryptedData)
+          if (decryptedData) {
+            // Check if user has meaningful preferences (not empty)
+            const hasPreferences = decryptedData.cuisines.length > 0 || 
+                                 decryptedData.budget || 
+                                 decryptedData.occasions.length > 0 || 
+                                 decryptedData.dietary.length > 0
+            this.hasProfile = hasPreferences
+          } else {
+            this.hasProfile = false
+          }
         } catch (e) {
-          console.warn('Failed to parse user preferences:', e)
+          console.warn('Failed to decrypt user preferences:', e)
           this.hasProfile = false
         }
       } else {
