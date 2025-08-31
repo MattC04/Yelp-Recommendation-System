@@ -329,8 +329,10 @@
 </template>
 
 <script>
+import securityService from '@/services/securityService.js'
+
 export default {
-  name: 'ProfileView',
+  name: 'Profile',
   data() {
     return {
       onboardingStep: 1,
