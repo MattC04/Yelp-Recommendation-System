@@ -208,13 +208,7 @@
               <div class="stat-label">Restaurants Liked</div>
             </div>
           </div>
-          <div class="journey-stat">
-            <div class="stat-icon">⭐</div>
-            <div class="stat-info">
-              <div class="stat-value">{{ averageRating }}</div>
-              <div class="stat-label">Avg Rating Given</div>
-            </div>
-          </div>
+
         </div>
         
         <div class="journey-tabs">
@@ -388,7 +382,7 @@ export default {
       ],
       totalSearches: 0,
       totalLikes: 0,
-      averageRating: 0,
+
       activeJourneyTab: 'milestones',
       journeyTabs: [
         { id: 'milestones', label: 'Milestones', icon: '📜' },
@@ -564,7 +558,7 @@ export default {
       // Calculate journey statistics
       this.totalSearches = Math.floor(Math.random() * 30) + 5;
       this.totalLikes = Math.floor(this.totalSearches * 0.7); // 70% like rate
-      this.averageRating = (Math.random() * 1.5 + 3.5).toFixed(1); // 3.5-5.0 range
+
       
       this.recommendationAccuracy = Math.min(100, Math.round((this.learningScore + 70) / 2));
       

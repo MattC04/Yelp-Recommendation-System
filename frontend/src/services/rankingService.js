@@ -120,14 +120,7 @@ class RankingService {
     );
   }
 
-  // Get average rating for a restaurant (user + community)
-  getAverageRating(restaurantId, communityRating = 0) {
-    const userRating = this.ratings[restaurantId];
-    if (!userRating) return communityRating;
-    
-    // Weight user rating higher than community rating
-    return (userRating.rating * 0.7) + (communityRating * 0.3);
-  }
+
 
   // Create a comparison between restaurants
   createComparison(restaurantIds, title = '') {
@@ -284,7 +277,6 @@ class RankingService {
 
     const allRatings = this.getUserRatings();
     const totalRated = allRatings.length;
-    const averageRating = allRatings.reduce((sum, r) => sum + r.rating, 0) / totalRated;
     const rank = allRatings
       .sort((a, b) => b.rating - a.rating)
       .findIndex(r => r.restaurantId === restaurantId) + 1;
@@ -294,7 +286,6 @@ class RankingService {
       userReview: rating.review,
       userCategories: rating.categories,
       totalRated,
-      averageRating: averageRating.toFixed(1),
       rank: rank > 0 ? rank : 'Unranked',
       lastRated: rating.lastUpdated
     };

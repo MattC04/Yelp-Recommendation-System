@@ -28,13 +28,7 @@
           <div class="stat-label">Ranking Lists</div>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">🏆</div>
-        <div class="stat-content">
-          <div class="stat-number">{{ averageRating }}</div>
-          <div class="stat-label">Avg Rating</div>
-        </div>
-      </div>
+
     </div>
 
     <!-- Unlock Progress Banner -->
@@ -313,11 +307,7 @@ export default {
     totalLists() {
       return this.personalLists.length
     },
-    averageRating() {
-      if (this.userRatings.length === 0) return '0.0'
-      const total = this.userRatings.reduce((sum, r) => sum + r.rating, 0)
-      return (total / this.userRatings.length).toFixed(1)
-    },
+
     filteredRatings() {
       if (!this.searchQuery.trim()) return this.userRatings
       
