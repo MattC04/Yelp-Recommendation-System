@@ -1,8 +1,36 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import authService from './services/authService.js'
 
+const router = useRouter()
 const isMobileMenuOpen = ref(false)
+const showUserMenu = ref(false)
 
+// Authentication state
+const isAuthenticated = ref(false)
+const currentUser = ref(null)
+
+// Load auth state on mount
+onMounted(() => {
+  updateAuthState()
+})
+
+// Update authentication state
+const updateAuthState = () => {
+  isAuthenticated.value = authService.checkAuth()
+  currentUser.value = authService.getCurrentUser()
+}
+
+// Handle logout
+const handleLogout = () => {
+  authService.logout()
+  updateAuthState()
+  closeMobileMenu()
+  router.push('/')
+}
+
+// Toggle mobile menu
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
 }
@@ -10,6 +38,24 @@ const toggleMobileMenu = () => {
 const closeMobileMenu = () => {
   isMobileMenuOpen.value = false
 }
+
+// Toggle user menu
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value
+}
+
+const closeUserMenu = () => {
+  showUserMenu.value = false
+}
+
+// Computed properties
+const userDisplayName = computed(() => {
+  return authService.getDisplayName()
+})
+
+const userAvatar = computed(() => {
+  return authService.getUserAvatar()
+})
 </script>
 
 <template>
@@ -26,8 +72,44 @@ const closeMobileMenu = () => {
       <nav class="nav desktop-nav">
         <router-link to="/" class="nav-link" @click="closeMobileMenu">Home</router-link>
         <router-link to="/search" class="nav-link" @click="closeMobileMenu">Search</router-link>
+        <router-link to="/rankings" class="nav-link" @click="closeMobileMenu">Rankings</router-link>
         <router-link to="/profile" class="nav-link" @click="closeMobileMenu">Profile</router-link>
         <router-link to="/share" class="nav-link" @click="closeMobileMenu">Share</router-link>
+        
+        <!-- Auth Navigation -->
+        <div v-if="!isAuthenticated" class="auth-nav">
+          <router-link to="/login" class="nav-link auth-link" @click="closeMobileMenu">
+            Sign In
+          </router-link>
+        </div>
+        <div v-else class="user-nav">
+          <div class="user-menu">
+            <button class="user-btn" @click="toggleUserMenu">
+              <span class="user-avatar">{{ userAvatar }}</span>
+              <span class="user-name">{{ userDisplayName }}</span>
+              <span class="dropdown-arrow">▼</span>
+            </button>
+            <div class="user-dropdown" v-if="showUserMenu">
+              <router-link to="/profile" class="dropdown-item" @click="closeUserMenu">
+                <span class="dropdown-icon">👤</span>
+                My Profile
+              </router-link>
+              <router-link to="/rankings" class="dropdown-item" @click="closeUserMenu">
+                <span class="dropdown-icon">🏆</span>
+                My Rankings
+              </router-link>
+              <router-link to="/share" class="dropdown-item" @click="closeUserMenu">
+                <span class="dropdown-icon">📤</span>
+                My Posts
+              </router-link>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item logout-btn" @click="handleLogout">
+                <span class="dropdown-icon">🚪</span>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
       </nav>
 
       <!-- Mobile Menu Button -->
@@ -49,6 +131,10 @@ const closeMobileMenu = () => {
           <span class="nav-icon">🔍</span>
           Search
         </router-link>
+        <router-link to="/rankings" class="mobile-nav-link" @click="closeMobileMenu">
+          <span class="nav-icon">🏆</span>
+          Rankings
+        </router-link>
         <router-link to="/profile" class="mobile-nav-link" @click="closeMobileMenu">
           <span class="nav-icon">👤</span>
           Profile
@@ -57,6 +143,24 @@ const closeMobileMenu = () => {
           <span class="nav-icon">📤</span>
           Share
         </router-link>
+        
+        <!-- Mobile Auth Navigation -->
+        <div v-if="!isAuthenticated" class="mobile-auth-nav">
+          <router-link to="/login" class="mobile-nav-link auth-link" @click="closeMobileMenu">
+            <span class="nav-icon">🔐</span>
+            Sign In
+          </router-link>
+        </div>
+        <div v-else class="mobile-user-nav">
+          <div class="mobile-user-info">
+            <span class="mobile-user-avatar">{{ userAvatar }}</span>
+            <span class="mobile-user-name">{{ userDisplayName }}</span>
+          </div>
+          <button class="mobile-logout-btn" @click="handleLogout">
+            <span class="nav-icon">🚪</span>
+            Sign Out
+          </button>
+        </div>
       </nav>
     </div>
 
@@ -77,6 +181,7 @@ const closeMobileMenu = () => {
           <h4 class="footer-subtitle">Quick Links</h4>
           <router-link to="/" class="footer-link">Home</router-link>
           <router-link to="/search" class="footer-link">Search</router-link>
+          <router-link to="/rankings" class="footer-link">Rankings</router-link>
           <router-link to="/profile" class="footer-link">Profile</router-link>
           <router-link to="/share" class="footer-link">Share</router-link>
         </div>
@@ -174,6 +279,7 @@ body {
 /* Desktop Navigation */
 .desktop-nav {
   display: flex;
+  align-items: center;
   gap: 2rem;
 }
 
@@ -209,6 +315,151 @@ body {
 /* Replace pseudo underline with inset shadow to avoid square artifacts */
 .nav-link.router-link-active {
   box-shadow: inset 0 -3px 0 0 #07450C;
+}
+
+/* Auth Navigation */
+.auth-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.auth-link {
+  background: linear-gradient(135deg, #07450C, #0a5a0f);
+  color: white;
+  border: 2px solid transparent;
+}
+
+.auth-link:hover {
+  background: linear-gradient(135deg, #0a5a0f, #07450C);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(7, 69, 12, 0.3);
+}
+
+/* User Navigation */
+.user-nav {
+  display: flex;
+  align-items: center;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #07450C;
+  font-weight: 600;
+}
+
+.user-btn:hover {
+  background: rgba(7, 69, 12, 0.1);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #07450C, #0a5a0f);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.user-name {
+  font-size: 0.9rem;
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+
+.user-menu:hover .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+/* User Dropdown */
+.user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(7, 69, 12, 0.1);
+  min-width: 200px;
+  z-index: 1001;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.2s ease;
+}
+
+.user-menu:hover .user-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #07450C;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background: rgba(7, 69, 12, 0.05);
+}
+
+.dropdown-item:first-child {
+  border-radius: 12px 12px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 12px 12px;
+}
+
+.dropdown-icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(7, 69, 12, 0.1);
+  margin: 0.5rem 0;
+}
+
+.logout-btn {
+  color: #dc2626;
+}
+
+.logout-btn:hover {
+  background: rgba(220, 38, 38, 0.05);
 }
 
 /* Mobile Menu Button */
@@ -311,6 +562,64 @@ body {
   font-size: 1.2rem;
   width: 24px;
   text-align: center;
+}
+
+/* Mobile Auth Navigation */
+.mobile-auth-nav {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid rgba(7, 69, 12, 0.1);
+}
+
+.mobile-user-nav {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid rgba(7, 69, 12, 0.1);
+}
+
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+}
+
+.mobile-user-avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #07450C, #0a5a0f);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.mobile-user-name {
+  font-weight: 600;
+  color: #07450C;
+}
+
+.mobile-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 0;
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-logout-btn:hover {
+  background: rgba(220, 38, 38, 0.05);
 }
 
 /* Content */
@@ -467,6 +776,11 @@ body {
   .hamburger-line {
     background: #ffffff;
   }
+  
+  .user-dropdown {
+    background: #2d2d2d;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
 }
 
 /* High contrast mode support */
@@ -502,6 +816,14 @@ body {
   
   .mobile-nav-overlay,
   .mobile-nav {
+    transition: none;
+  }
+  
+  .user-dropdown {
+    transition: none;
+  }
+  
+  .dropdown-arrow {
     transition: none;
   }
 }

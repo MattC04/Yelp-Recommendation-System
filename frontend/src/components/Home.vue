@@ -16,9 +16,13 @@
             <span class="btn-icon">🔍</span>
             Start Exploring
           </router-link>
-          <router-link to="/share" class="cta-btn secondary">
-            <span class="btn-icon">📤</span>
-            Share Your Finds
+          <router-link v-if="!isAuthenticated" to="/login" class="cta-btn secondary">
+            <span class="btn-icon">🔐</span>
+            Sign In
+          </router-link>
+          <router-link v-else to="/profile" class="cta-btn secondary">
+            <span class="btn-icon">👤</span>
+            My Profile
           </router-link>
         </div>
       </div>
@@ -126,27 +130,94 @@
 
     <!-- CTA Section -->
     <div class="cta-section">
-      <h2 class="cta-title">Ready to Find Your Next Favorite Restaurant?</h2>
+      <h2 class="cta-title">
+        {{ isAuthenticated ? 'Ready to Discover More?' : 'Ready to Find Your Next Favorite Restaurant?' }}
+      </h2>
       <p class="cta-subtitle">
-        Join thousands of food lovers who are already discovering amazing places to eat.
+        {{ isAuthenticated 
+          ? 'Continue exploring amazing restaurants and building your personal food journey.' 
+          : 'Join thousands of food lovers who are already discovering amazing places to eat.' 
+        }}
       </p>
       <div class="cta-actions">
         <router-link to="/search" class="cta-btn primary large">
           <span class="btn-icon">🚀</span>
-          Get Started Now
+          {{ isAuthenticated ? 'Explore More' : 'Get Started Now' }}
         </router-link>
-        <router-link to="/profile" class="cta-btn secondary large">
+        <router-link v-if="!isAuthenticated" to="/login" class="cta-btn secondary large">
           <span class="btn-icon">👤</span>
-          Create Profile
+          Create Account
         </router-link>
+        <router-link v-else to="/rankings" class="cta-btn secondary large">
+          <span class="btn-icon">🏆</span>
+          View Rankings
+        </router-link>
+      </div>
+    </div>
+
+    <!-- Welcome Back Section for Authenticated Users -->
+    <div v-if="isAuthenticated" class="welcome-section">
+      <div class="welcome-content">
+        <div class="welcome-header">
+          <span class="welcome-icon">👋</span>
+          <h3 class="welcome-title">Welcome back, {{ userDisplayName }}!</h3>
+        </div>
+        <p class="welcome-text">
+          Continue your culinary journey with personalized recommendations and track your progress.
+        </p>
+        <div class="welcome-stats">
+          <div class="welcome-stat">
+            <span class="stat-icon">⭐</span>
+            <span class="stat-value">{{ userStats.reviews }}</span>
+            <span class="stat-label">Reviews</span>
+          </div>
+          <div class="welcome-stat">
+            <span class="stat-icon">📝</span>
+            <span class="stat-value">{{ userStats.lists }}</span>
+            <span class="stat-label">Lists</span>
+          </div>
+          <div class="welcome-stat">
+            <span class="stat-icon">⚖️</span>
+            <span class="stat-value">{{ userStats.comparisons }}</span>
+            <span class="stat-label">Comparisons</span>
+          </div>
+        </div>
+        <div class="welcome-actions">
+          <router-link to="/profile" class="welcome-btn">
+            <span class="btn-icon">👤</span>
+            Complete Profile
+          </router-link>
+          <router-link to="/share" class="welcome-btn outline">
+            <span class="btn-icon">📤</span>
+            Share Experience
+          </router-link>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import { computed, onMounted } from 'vue'
+import authService from '../services/authService.js'
+
 export default {
-  name: 'HomeView'
+  name: 'HomeView',
+  setup() {
+    // Authentication state
+    const isAuthenticated = computed(() => authService.checkAuth())
+    const userDisplayName = computed(() => authService.getDisplayName())
+    const userStats = computed(() => {
+      const user = authService.getCurrentUser()
+      return user ? user.stats : { reviews: 0, lists: 0, comparisons: 0 }
+    })
+
+    return {
+      isAuthenticated,
+      userDisplayName,
+      userStats
+    }
+  }
 }
 </script>
 
@@ -464,6 +535,117 @@ export default {
   flex-wrap: wrap;
 }
 
+/* Welcome Back Section */
+.welcome-section {
+  padding: 4rem 0;
+  background: linear-gradient(135deg, rgba(7, 69, 12, 0.03), rgba(7, 69, 12, 0.08));
+  margin: 2rem -2rem;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+.welcome-content {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.welcome-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.welcome-icon {
+  font-size: 2.5rem;
+}
+
+.welcome-title {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #07450C;
+  margin: 0;
+}
+
+.welcome-text {
+  font-size: 1.1rem;
+  color: #07450C;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+.welcome-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.welcome-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-icon {
+  font-size: 2rem;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #07450C;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #07450C;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.welcome-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.welcome-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  border: 2px solid #07450C;
+  background: #07450C;
+  color: white;
+}
+
+.welcome-btn.outline {
+  background: white;
+  color: #07450C;
+}
+
+.welcome-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(7, 69, 12, 0.2);
+}
+
+.welcome-btn.outline:hover {
+  background: #07450C;
+  color: white;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .hero-section {
@@ -531,6 +713,41 @@ export default {
   .cta-actions {
     flex-direction: column;
     align-items: center;
+  }
+
+  .welcome-section {
+    padding: 2rem 0;
+  }
+
+  .welcome-content {
+    padding: 0 1rem;
+  }
+
+  .welcome-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .welcome-title {
+    font-size: 1.8rem;
+  }
+
+  .welcome-text {
+    font-size: 1rem;
+  }
+
+  .welcome-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .welcome-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 
