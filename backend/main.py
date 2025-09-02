@@ -339,6 +339,29 @@ class LocationRecommendRequest(BaseModel):
 	limit: int = 25
 
 
+class CombinedRecommendRequest(BaseModel):
+	query: Optional[str] = None
+	location: str
+	dietary_restrictions: Optional[List[str]] = []
+	ambiance: Optional[str] = None
+	price_range: Optional[str] = None
+	offset: int = 0
+	limit: int = 25
+
+
+class SearchRequest(BaseModel):
+	query: Optional[str] = None
+	location: Optional[str] = None
+	offset: int = 0
+	limit: int = 25
+	# weights
+	weight_semantic: float = 0.40
+	weight_tfidf: float = 0.30
+	weight_keyword: float = 0.15
+	weight_rating: float = 0.10
+	weight_popularity: float = 0.05
+
+
 class Restaurant(BaseModel):
 	name: str
 	address: str
@@ -672,6 +695,182 @@ def recommend_by_location(req: LocationRecommendRequest):
 		raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+@app.post("/recommend-combined", response_model=List[Restaurant])
+def recommend_combined(req: CombinedRecommendRequest):
+	logger.info(f"Combined recommendation request received: query='{req.query}', location='{req.location}'")
+	
+	try:
+		if df.empty:
+			logger.error("DataFrame is empty - data loading failed")
+			raise HTTPException(status_code=500, detail="Data not loaded")
+		
+		# Convert inputs to lowercase for case-insensitive search
+		location_query = req.location.lower().strip()
+		cuisine_query = req.query.lower().strip() if req.query else ""
+		
+		logger.info(f"Searching for cuisine: '{cuisine_query}' in location: '{location_query}'")
+		
+		# Filter restaurants by location first
+		filtered = df.copy()
+		location_columns = []
+		possible_location_columns = ['address', 'city', 'state', 'zip', 'zipcode', 'postal_code', 'location']
+		
+		for col in df.columns:
+			col_lower = col.lower()
+			if any(loc_col in col_lower for loc_col in possible_location_columns):
+				location_columns.append(col)
+		
+		if not location_columns:
+			logger.error("No location columns found in data")
+			raise HTTPException(status_code=500, detail="Location data not available")
+		
+		# Create location filter mask with more flexible matching
+		location_mask = pd.Series([False] * len(df), index=df.index)
+		for col in location_columns:
+			col_lower = col.lower()
+			if 'zip' in col_lower or 'postal' in col_lower:
+				zip_mask = df[col].astype(str).str.lower().str.contains(location_query, na=False, regex=False)
+				location_mask = location_mask | zip_mask
+			elif 'city' in col_lower:
+				city_mask = df[col].astype(str).str.lower().str.contains(location_query, na=False, regex=False)
+				location_mask = location_mask | city_mask
+			elif 'state' in col_lower:
+				state_mask = df[col].astype(str).str.lower().str.contains(location_query, na=False, regex=False)
+				location_mask = location_mask | state_mask
+			else:
+				# For address columns, be more flexible - check if any part contains the location
+				general_mask = df[col].astype(str).str.lower().str.contains(location_query, na=False, regex=False)
+				location_mask = location_mask | general_mask
+		
+		# If no exact matches found, try partial matching for better results
+		if location_mask.sum() == 0:
+			logger.info(f"No exact location matches found for '{location_query}', trying partial matching...")
+			for col in location_columns:
+				col_lower = col.lower()
+				# Try matching first 3+ characters for better partial matching
+				if len(location_query) >= 3:
+					partial_query = location_query[:3].lower()
+					partial_mask = df[col].astype(str).str.lower().str.contains(partial_query, na=False, regex=False)
+					location_mask = location_mask | partial_mask
+					logger.info(f"Partial match in '{col}' for '{partial_query}': {partial_mask.sum()} matches")
+		
+		filtered = filtered[location_mask]
+		logger.info(f"Restaurants found in location '{req.location}': {len(filtered)}")
+		
+		# Debug: Show sample matches if any found
+		if len(filtered) > 0:
+			sample_matches = filtered[['name', 'address'] + [col for col in ['city', 'state'] if col in filtered.columns]].head(3)
+			logger.info(f"Sample location matches: {sample_matches.to_dict('records')}")
+		
+		if len(filtered) == 0:
+			logger.info(f"No restaurants found in location '{req.location}'")
+			# Try to show what's available in the data
+			logger.info("Available cities in data:")
+			if 'city' in df.columns:
+				city_counts = df['city'].value_counts().head(10)
+				logger.info(f"Top cities: {city_counts.to_dict()}")
+			return []
+		
+		# If cuisine query is provided, filter by cuisine as well
+		if cuisine_query:
+			found_cuisines = [kw for kw in cuisine_keywords if kw in cuisine_query]
+			if found_cuisines and 'categories' in filtered.columns:
+				pattern = '|'.join(found_cuisines)
+				logger.info(f"Filtering by cuisine pattern: {pattern}")
+				filtered = filtered[filtered['categories'].str.lower().str.contains(pattern, na=False)]
+				logger.info(f"Restaurants after cuisine filter: {len(filtered)}")
+		
+		# Apply additional filters if provided
+		if req.dietary_restrictions:
+			logger.info(f"Applying dietary restrictions: {req.dietary_restrictions}")
+			dietary_pattern = '|'.join(req.dietary_restrictions)
+			filtered = filtered[filtered['categories'].str.lower().str.contains(dietary_pattern, na=False)]
+			logger.info(f"Restaurants after dietary filter: {len(filtered)}")
+		
+		if req.ambiance:
+			logger.info(f"Applying ambiance filter: {req.ambiance}")
+			ambiance_keywords = {
+				'romantic': ['romantic', 'intimate', 'cozy', 'elegant'],
+				'casual': ['casual', 'relaxed', 'comfortable', 'laid-back'],
+				'family-friendly': ['family', 'kids', 'children', 'playful'],
+				'upscale': ['upscale', 'fine dining', 'elegant', 'sophisticated'],
+				'outdoor': ['outdoor', 'patio', 'garden', 'terrace'],
+				'lively': ['lively', 'energetic', 'vibrant', 'bustling']
+			}
+			
+			if req.ambiance in ambiance_keywords:
+				ambiance_pattern = '|'.join(ambiance_keywords[req.ambiance])
+				filtered = filtered[filtered['categories'].str.lower().str.contains(ambiance_pattern, na=False)]
+				logger.info(f"Restaurants after ambiance filter: {len(filtered)}")
+		
+		if req.price_range:
+			logger.info(f"Applying price range filter: {req.price_range}")
+			price_keywords = {
+				'budget': ['budget', 'cheap', 'affordable', 'inexpensive'],
+				'moderate': ['moderate', 'mid-range', 'reasonable'],
+				'expensive': ['expensive', 'luxury', 'high-end', 'premium']
+			}
+			
+			if req.price_range in price_keywords:
+				price_pattern = '|'.join(price_keywords[req.price_range])
+				filtered = filtered[filtered['categories'].str.lower().str.contains(price_pattern, na=False)]
+				logger.info(f"Restaurants after price filter: {len(filtered)}")
+		
+		# Sort by rating and popularity
+		if 'stars' in filtered.columns and 'review_count' in filtered.columns:
+			filtered = filtered.sort_values(['stars', 'review_count'], ascending=[False, False])
+			logger.info("Sorted by stars and review count")
+		elif 'stars' in filtered.columns:
+			filtered = filtered.sort_values('stars', ascending=False)
+			logger.info("Sorted by stars only")
+		else:
+			logger.warning("No stars column found for sorting")
+		
+		# Apply pagination
+		total_results = len(filtered)
+		start_idx = req.offset
+		end_idx = min(start_idx + req.limit, total_results)
+		paginated_results = filtered.iloc[start_idx:end_idx]
+		
+		logger.info(f"Pagination: total={total_results}, offset={req.offset}, limit={req.limit}, returning={len(paginated_results)}")
+		
+		# Prepare response
+		results = []
+		for _, row in paginated_results.iterrows():
+			try:
+				restaurant = Restaurant(
+					name=str(row.get('name', 'Unknown')),
+					address=str(row.get('address', 'No address')),
+					stars=float(row.get('stars', 0.0)),
+					categories=str(row.get('categories', 'No categories')),
+					review_count=int(row.get('review_count', 0)),
+					score=float(row.get('stars', 0.0)),
+					similarity_score=0.0,
+					overall_score=float(row.get('stars', 0.0)),
+					semantic_score=0.0,
+					tfidf_score=0.0,
+					keyword_score=0.0,
+					rating_score=float(row.get('stars', 0.0)) / 5.0,
+					popularity_score=float(row.get('review_count', 0)) / max(filtered['review_count'].max(), 1) if 'review_count' in filtered.columns else 0.0
+				)
+				results.append(restaurant)
+				logger.info(f"Created restaurant object: {restaurant.name}")
+			except Exception as e:
+				logger.warning(f"Error creating restaurant from row: {e}")
+				logger.warning(f"Row data: {row.to_dict()}")
+				continue
+		
+		logger.info(f"Successfully created {len(results)} restaurant objects")
+		logger.info(f"Successfully returned {len(results)} restaurants for combined search")
+		return results
+		
+	except Exception as e:
+		logger.error(f"Error in recommend-combined endpoint: {str(e)}")
+		logger.error(f"DataFrame columns: {list(df.columns) if not df.empty else 'Empty'}")
+		logger.error(f"DataFrame shape: {df.shape}")
+		raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @app.post("/recommend", response_model=List[Restaurant])
 def recommend(req: RecommendRequest):
 	logger.info(f"Recommendation request received: {req.query}")
@@ -818,6 +1017,131 @@ def recommend(req: RecommendRequest):
 		logger.error(f"DataFrame columns: {list(df.columns) if not df.empty else 'Empty'}")
 		logger.error(f"DataFrame shape: {df.shape}")
 		raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.post("/search", response_model=List[Restaurant])
+def unified_search(req: SearchRequest):
+	try:
+		if df.empty:
+			raise HTTPException(status_code=500, detail="Data not loaded")
+
+		working = df.copy()
+		indices = None
+
+		# Optional location filter
+		if req.location and req.location.strip():
+			location_query = req.location.strip().lower()
+			possible_location_columns = ['address', 'city', 'state', 'zip', 'zipcode', 'postal_code', 'location']
+			location_columns = [c for c in working.columns if any(k in c.lower() for k in possible_location_columns)]
+			if not location_columns:
+				logger.warning("No location columns found for /search")
+			else:
+				mask = pd.Series([False] * len(working), index=working.index)
+				for col in location_columns:
+					try:
+						m = working[col].astype(str).str.lower().str.contains(location_query, na=False)
+						mask = mask | m
+					except Exception:
+						continue
+				working = working[mask]
+				if len(working) == 0:
+					return []
+				indices = working.index.to_numpy()
+
+		# Scoring for query
+		semantic_scores = None
+		tfidf_scores = None
+		keyword_scores = None
+		if req.query and req.query.strip():
+			q = req.query.strip().lower()
+			# TF-IDF over combined texts if available
+			tfidf_scores = calculate_tfidf_similarity(q, indices=indices)
+			# Semantic over embeddings if available
+			semantic_scores = calculate_semantic_similarity(q, indices=indices)
+			# Simple keyword score against categories and text fields
+			kw_series = pd.Series(0.0, index=working.index)
+			for col in ['categories', 'text', 'text_bow']:
+				if col in working.columns:
+					try:
+						kw_series = kw_series + working[col].astype(str).str.lower().str.contains(q, na=False).astype(float)
+					except Exception:
+						pass
+			keyword_scores = kw_series.values
+
+		# Build score
+		def _norm(x):
+			if x is None: return None
+			x = np.array(x, dtype=float)
+			if x.size == 0: return x
+			mn, mx = np.nanmin(x), np.nanmax(x)
+			if mx - mn <= 1e-12: return np.zeros_like(x)
+			return (x - mn) / (mx - mn)
+
+		w_sem, w_tfidf, w_kw = req.weight_semantic, req.weight_tfidf, req.weight_keyword
+		w_rating, w_pop = req.weight_rating, req.weight_popularity
+
+		s_sem = _norm(semantic_scores)
+		s_tfidf = _norm(tfidf_scores)
+		s_kw = _norm(keyword_scores)
+
+		# Rating/popularity
+		rating = working['stars'].astype(float) if 'stars' in working.columns else pd.Series(0.0, index=working.index)
+		pop = working['review_count'].astype(float) if 'review_count' in working.columns else pd.Series(0.0, index=working.index)
+		s_rating = _norm(rating.values)
+		s_pop = _norm(pop.values)
+
+		overall = np.zeros(len(working))
+		if s_sem is not None: overall = overall + w_sem * s_sem
+		if s_tfidf is not None: overall = overall + w_tfidf * s_tfidf
+		if s_kw is not None: overall = overall + w_kw * s_kw
+		overall = overall + w_rating * s_rating + w_pop * s_pop
+
+		working = working.assign(_score=overall,
+			semantic_score=(s_sem if s_sem is not None else np.zeros(len(working))),
+			tfidf_score=(s_tfidf if s_tfidf is not None else np.zeros(len(working))),
+			keyword_score=(s_kw if s_kw is not None else np.zeros(len(working))),
+			rating_score=s_rating,
+			popularity_score=s_pop,
+			overall_score=overall)
+
+		# Prefer higher star/review tie-breakers
+		working = working.sort_values(['_score', 'stars', 'review_count'], ascending=[False, False, False], kind='mergesort')
+
+		# De-duplicate by business name/address to avoid multiple review rows
+		dedup_cols = [c for c in ['name', 'address'] if c in working.columns]
+		if dedup_cols:
+			working = working.drop_duplicates(subset=dedup_cols, keep='first')
+
+		# Pagination
+		total = len(working)
+		start = max(0, req.offset)
+		end = min(total, start + max(1, req.limit))
+		page = working.iloc[start:end]
+
+		results: List[Restaurant] = []
+		for _, row in page.iterrows():
+			results.append(Restaurant(
+				name=str(row.get('name', 'Unknown')),
+				address=str(row.get('address', 'No address')),
+				stars=float(row.get('stars', 0.0)),
+				categories=str(row.get('categories', 'No categories')),
+				review_count=int(row.get('review_count', 0)),
+				score=float(row.get('_score', 0.0)),
+				similarity_score=float(row.get('semantic_score', 0.0)),
+				overall_score=float(row.get('overall_score', 0.0)),
+				semantic_score=float(row.get('semantic_score', 0.0)),
+				tfidf_score=float(row.get('tfidf_score', 0.0)),
+				keyword_score=float(row.get('keyword_score', 0.0)),
+				rating_score=float(row.get('stars', 0.0)) / 5.0,
+				popularity_score=float(row.get('review_count', 0.0)) / max(float(working['review_count'].max()) if 'review_count' in working.columns else 1.0, 1.0)
+			))
+
+		return results
+	except HTTPException:
+		raise
+	except Exception as e:
+		logger.error(f"Error in /search: {e}")
+		raise HTTPException(status_code=500, detail="Internal server error")
 
 
 if __name__ == "__main__":
