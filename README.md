@@ -1,149 +1,117 @@
-# BELP
+# Yelp Recommendation System
 
-A restaurant recommendation app that learns your preferences and suggests places you'll actually like.
+A full-stack recommendation app that ranks restaurants using reviews, sentiment, and NLP semantics, with a Vue frontend and a FastAPI backend.
 
-## What it does
+## Overview
+- Frontend: Vue (`frontend/src/components/YelpSearch.vue`) with a dual-field search (Find + Near), result ranking and explanations, loading animation, and minimal AI scoring fallback in the UI.
+- Backend: FastAPI (`backend/main.py`) that loads the processed Yelp dataset, computes TF‑IDF and (optionally) SentenceTransformer semantic similarities, and exposes a unified `/search` endpoint.
+- Data: Main raw reviews live in `data/yelp_reviews.csv` (large). A processed, smaller file with sentiment and bag-of-words lives in `output/yelp_reviews_bow_sentiment.csv` and is used for fast search.
 
-BELP uses AI to figure out what kind of restaurants you enjoy and recommends new places based on your taste. Instead of generic suggestions, it learns from your choices and gets better over time.
+## Data & Models
+- Dataset used at runtime: `output/yelp_reviews_bow_sentiment.csv` (10k rows sampled + engineered columns)
+  - Important columns: `name`, `address`, `city`, `state`, `postal_code`, `stars`, `review_count`, `categories`, `text` (review), `text_bow` (bag-of-words), `sentiment` (precomputed score)
+- Models/Representations:
+  - TF‑IDF (scikit-learn): built over concatenated text fields (`name`, `categories`, `address` or reviews) for lexical similarity.
+  - SentenceTransformer (optional): `all-MiniLM-L6-v2` for semantic similarity; falls back to non-NLP when not available.
+  - Keyword features: direct regex contains across `categories`, `text`, `text_bow`, `name`.
 
-## Getting started
+## Backend API (FastAPI)
+File: `backend/main.py`
 
-### Backend
-```bash
+- Health: `GET /health` — status, data shape, NLP availability
+- Unified Search: `POST /search`
+  - Request body:
+    ```json
+    {
+      "query": "asian",      // optional
+      "location": "New York",// optional
+      "offset": 0,
+      "limit": 25,
+      "weight_semantic": 0.40,
+      "weight_tfidf": 0.30,
+      "weight_keyword": 0.15,
+      "weight_rating": 0.10,
+      "weight_popularity": 0.05
+    }
+    ```
+  - Response: array of restaurants with fields:
+    - `name`, `address`, `stars`, `categories`, `review_count`
+    - Scores: `score` (UI), `overall_score`, `semantic_score`, `tfidf_score`, `keyword_score`, `rating_score`, `popularity_score`
+
+### Ranking Pipeline (Backend)
+1. Optional location filter across `address`, `city`, `state`, `postal_code` (case-insensitive substring).
+2. Query processing:
+   - TF‑IDF similarity for lexical match
+   - Semantic similarity (if SentenceTransformer loaded)
+   - Keyword OR-match across `categories`, `text`, `text_bow`, `name`
+3. Normalize and combine scores using weights:
+   - `overall = w_sem*semantic + w_tfidf*tfidf + w_kw*keyword + w_rating*rating + w_pop*popularity`
+4. Sort by `(overall desc, stars desc, review_count desc)`
+5. Deduplicate by `(name, address)`
+6. Paginate and return typed response
+
+### Tuning Weights (Environment)
+Set any of the following to override request defaults (optional):
+- `SEARCH_WEIGHT_SEMANTIC`
+- `SEARCH_WEIGHT_TFIDF`
+- `SEARCH_WEIGHT_KEYWORD`
+- `SEARCH_WEIGHT_RATING`
+- `SEARCH_WEIGHT_POPULARITY`
+
+If unset, request-provided defaults are used.
+
+## Frontend Flow (Vue)
+File: `frontend/src/components/YelpSearch.vue`
+
+1. User types Find (query) and Near (location); clicks Search.
+2. Inputs validated and sanitized (`securityService`).
+3. `POST /search` with `query` and `location`.
+4. Results render with a loading animation while awaiting response.
+5. UI applies an optional AI scoring via `aiRecommender.scoreAndExplain` and falls back to star-based scoring if it fails.
+6. Sorting options (AI Score, Rating, Popularity) reorder the displayed list client-side.
+
+## How to Run (Development)
+Backend (PowerShell on Windows):
+```powershell
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+Verify:
+```powershell
+python -c "import requests; print(requests.get('http://localhost:8000/health').json())"
 ```
 
-### Frontend
-```bash
+Frontend:
+```powershell
 cd frontend
 npm install
 npm run dev
 ```
+Open the dev URL printed by Vite (usually `http://localhost:5173`).
 
-The app will be running at http://localhost:5173
+## Troubleshooting
+- “Method Not Allowed”: ensure the frontend calls `POST /search` (not a GET) and backend is running on `:8000`.
+- Empty results:
+  - Try query without location; then try a different term (e.g., "sushi").
+  - Confirm `/health` shows `data_loaded: true` and `nlp_available`.
+  - Loosen weights by lowering semantic if embeddings aren’t loaded.
+- CORS: backend allows `http://localhost:5173` by default.
 
-## How it works
-
-When you first use BELP, it asks you about your food preferences - what cuisines you like, your budget, dining occasions, and any dietary restrictions. This creates your profile.
-
-As you search for restaurants and interact with recommendations, the AI learns your patterns and gets better at suggesting places you'll enjoy. It tracks things like:
-- What cuisines you search for most
-- When you typically dine out
-- What price ranges you prefer
-- How you rate different types of restaurants
-
-## Recommendation System Deep Dive
-
-### Data Processing Pipeline
-
-**1. Data Cleaning & Validation**
-The system starts with raw restaurant data (name, address, cuisine, ratings, reviews) and cleans it through several steps:
-
-- **Text normalization**: Standardizes cuisine names, removes duplicates, fixes typos
-- **Data validation**: Ensures ratings are 1-5, prices are valid ranges, addresses are complete
-- **Missing data handling**: Fills gaps with reasonable defaults or removes incomplete entries
-- **Outlier detection**: Removes restaurants with suspicious ratings or review counts
-
-**2. Feature Engineering**
-For each restaurant, the system creates numerical features:
-- **Cuisine encoding**: Converts text cuisine names to numerical vectors
-- **Rating normalization**: Scales ratings to account for different rating distributions
-- **Review sentiment**: Analyzes review text to extract positive/negative sentiment scores
-- **Location features**: Encodes city/state information for geographic relevance
-
-**3. AI Learning Process**
-The recommendation engine uses multiple approaches:
-
-**Content-based filtering**: 
-- Analyzes your selected cuisines, budget, and dietary preferences
-- Matches restaurants with similar characteristics to what you've liked before
-- Uses semantic similarity to find restaurants even if exact cuisine matches aren't available
-
-**Collaborative filtering**:
-- Learns from your interactions (clicks, likes, search patterns)
-- Builds a user preference profile based on your behavior
-- Adjusts recommendations as you use the app more
-
-**Hybrid approach**:
-- Combines content and collaborative filtering for better accuracy
-- Weights different signals based on how much data is available
-- Falls back to content-based when there's limited user data
-
-### How Recommendations Improve Over Time
-
-**Initial recommendations** (0-5 interactions):
-- Based purely on your onboarding preferences
-- Uses content-based filtering with cuisine and budget matching
-- May be somewhat generic but relevant to your stated preferences
-
-**Learning phase** (5-20 interactions):
-- Starts incorporating your actual behavior
-- Learns which cuisines you actually search for vs. just said you liked
-- Begins to understand your real budget preferences and dining patterns
-
-**Mature recommendations** (20+ interactions):
-- Highly personalized based on your actual behavior
-- Can suggest restaurants you might not have considered
-- Learns subtle preferences (e.g., you prefer casual Italian over fancy Italian)
-- Adapts to seasonal changes and new preferences
-
-### Data Validation & Security
-
-**Input validation**:
-- Search queries are sanitized to prevent XSS attacks
-- Location inputs are restricted to safe characters
-- Preference selections have reasonable limits (max 15 cuisines, 10 occasions)
-
-**Data integrity**:
-- All user preferences are encrypted before storage
-- Validation ensures data meets expected formats before processing
-- Fallback handling for corrupted or invalid data
-
-**Privacy protection**:
-- All learning happens locally on your device
-- No personal data is sent to external servers
-- Your preference patterns stay private
-
-## Features
-
-- **Smart onboarding** - Quick preference quiz to get started
-- **Location search** - Find restaurants by city, state, or zipcode
-- **AI recommendations** - Personalized suggestions that improve over time
-- **Advanced filters** - Dietary restrictions, ambiance, price range
-- **Personal dashboard** - See your preferences and how the AI is learning
-- **Secure storage** - Your data is encrypted and stored locally
-
-## Tech stack
-
-**Backend**: FastAPI, Python, Pandas, machine learning for recommendations
-**Frontend**: Vue.js 3, modern CSS, responsive design
-**Security**: Client-side encryption, input validation, XSS protection
-
-## Project structure
-
+## Project Structure
 ```
-├── backend/          # Python API server
-├── frontend/         # Vue.js web app
-├── data/            # Restaurant dataset
-└── docs/            # Documentation
+backend/
+  main.py            # FastAPI app with /search
+  check_data.py      # Data sanity checks
+frontend/
+  src/components/YelpSearch.vue  # Search UI
+  src/services/aiRecommender.js  # Optional UI scoring
+  src/services/securityService.js
+output/
+  yelp_reviews_bow_sentiment.csv # Processed file used by backend
+data/
+  yelp_reviews.csv                # Original reviews (large)
 ```
 
-## Security
-
-Your data stays on your device and is encrypted. We don't collect or store personal information on our servers. The app includes security measures to prevent common web attacks.
-
-## Contributing
-
-Found a bug or want to add a feature? Open an issue or submit a pull request. This is a learning project, so contributions are welcome.
-
-## License
-
-MIT License - feel free to use this code for your own projects.
-
----
-
-Built as a learning project to explore AI recommendation systems and modern web development.
+## Notes
+- If SentenceTransformer isn’t installed, backend falls back to TF‑IDF/keyword/rating/popularity and still works.
+- The UI scoring is best-effort; failures fall back to rating-based order to keep the app usable.

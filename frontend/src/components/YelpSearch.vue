@@ -31,6 +31,19 @@
     </div>
 
     <div v-if="loading" class="loading-section" aria-live="polite">
+      <div class="kitchen-loader" role="status" aria-label="Cooking recommendations">
+        <div class="pot">
+          <div class="pot-body"></div>
+          <div class="pot-lip"></div>
+          <div class="spoon"></div>
+          <div class="bubble b1"></div>
+          <div class="bubble b2"></div>
+          <div class="bubble b3"></div>
+        </div>
+        <div class="steam s1"></div>
+        <div class="steam s2"></div>
+        <div class="steam s3"></div>
+      </div>
       <p class="loading-caption">Cooking up recommendations...</p>
     </div>
 
@@ -230,4 +243,21 @@ export default {
 @media (max-width: 768px) {
   .yelp-bar { flex-direction: column; align-items: stretch; }
 }
+
+/* Animated loader */
+.kitchen-loader { position: relative; width: 180px; height: 140px; margin: 12px auto; }
+.pot { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 160px; height: 70px; }
+.pot-body { width: 100%; height: 100%; background: #eee; border: 3px solid #ccc; border-radius: 0 0 16px 16px; }
+.pot-lip { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 140px; height: 14px; background: #ddd; border: 3px solid #c9c9c9; border-bottom: none; border-radius: 12px 12px 0 0; }
+.spoon { position: absolute; right: 20px; top: -32px; width: 8px; height: 48px; background: #c2a07a; border-radius: 4px; transform: rotate(10deg); animation: stir 1.8s ease-in-out infinite; transform-origin: bottom center; }
+@keyframes stir { 0%,100% { transform: rotate(8deg); } 50% { transform: rotate(-6deg); } }
+.bubble { position: absolute; bottom: 10px; left: 35%; width: 10px; height: 10px; background: #fff; border-radius: 50%; opacity: 0.8; animation: bubble 2s ease-in-out infinite; }
+.b2 { left: 55%; animation-delay: 0.3s; }
+.b3 { left: 45%; animation-delay: 0.6s; }
+@keyframes bubble { 0% { transform: translateY(0) scale(1); opacity: 0.2; } 50% { transform: translateY(-20px) scale(1.2); opacity: 1; } 100% { transform: translateY(-40px) scale(0.9); opacity: 0; } }
+.steam { position: absolute; bottom: 70px; left: 50%; width: 6px; height: 6px; background: rgba(255,255,255,0.7); border-radius: 50%; filter: blur(1px); animation: steam 2.6s ease-in-out infinite; }
+.s1 { animation-delay: 0s; }
+.s2 { animation-delay: 0.5s; }
+.s3 { animation-delay: 1s; }
+@keyframes steam { 0% { transform: translate(-10px, 0) scale(0.9); opacity: 0.2; } 50% { transform: translate(-4px, -25px) scale(1); opacity: 0.8; } 100% { transform: translate(8px, -50px) scale(0.8); opacity: 0; } }
 </style>
