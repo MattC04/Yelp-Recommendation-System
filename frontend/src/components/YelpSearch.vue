@@ -200,6 +200,8 @@ export default {
     queueForRanking(restaurant) {
       const id = restaurant.restaurantId || `${restaurant.name}||${restaurant.address}`
       rankingService.addToToRank(id)
+      // persist meta for grouping
+      rankingService.setMeta(id, { name: restaurant.name, address: restaurant.address, categories: restaurant.categories, stars: restaurant.stars })
       this.showToast('Added to your To Rank list')
       this.$router.push('/rankings')
     },

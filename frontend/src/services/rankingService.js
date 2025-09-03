@@ -8,6 +8,7 @@ class RankingService {
     this.rankingLists = this.loadRankingLists();
     this.visited = this.loadVisited();
     this.rank10 = this.loadRank10();
+    this.restaurantMeta = this.loadMeta();
   }
 
   // Load user ratings from localStorage
@@ -64,6 +65,8 @@ class RankingService {
 
   markVisited(restaurant) {
     const restaurantId = restaurant.restaurantId || `${restaurant.name}||${restaurant.address}`;
+    // keep meta in sync
+    this.setMeta(restaurantId, { name: restaurant.name, address: restaurant.address, categories: restaurant.categories, stars: restaurant.stars });
     if (!this.visited.find(v => v.restaurantId === restaurantId)) {
       this.visited.unshift({
         restaurantId,
@@ -430,6 +433,38 @@ class RankingService {
     }
   }
 
+  // Metadata store
+  loadMeta() {
+    try {
+      const stored = localStorage.getItem('belp_restaurant_meta');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      console.warn('Failed to load meta:', e);
+      return {};
+    }
+  }
+  saveMeta() {
+    try {
+      localStorage.setItem('belp_restaurant_meta', JSON.stringify(this.restaurantMeta));
+    } catch (e) {
+      console.error('Failed to save meta:', e);
+    }
+  }
+  setMeta(restaurantId, meta) {
+    if (!restaurantId) return;
+    const safe = this.restaurantMeta[restaurantId] || {};
+    this.restaurantMeta[restaurantId] = {
+      ...safe,
+      name: meta?.name || safe.name || '',
+      address: meta?.address || safe.address || '',
+      categories: meta?.categories || safe.categories || '',
+      stars: typeof meta?.stars === 'number' ? meta.stars : (safe.stars || 0)
+    };
+    this.saveMeta();
+    return this.restaurantMeta[restaurantId];
+  }
+  getMeta(restaurantId) { return this.restaurantMeta[restaurantId] || null; }
+
   // 1-10 ranking store
   loadRank10() {
     try {
@@ -463,7 +498,7 @@ class RankingService {
 
   getRank10Entries() {
     return Object.entries(this.rank10)
-      .map(([restaurantId, v]) => ({ restaurantId, score: v.score, lastUpdated: v.lastUpdated }))
+      .map(([restaurantId, v]) => ({ restaurantId, score: v.score, lastUpdated: v.lastUpdated, meta: this.getMeta(restaurantId) }))
       .sort((a, b) => b.score - a.score || new Date(b.lastUpdated) - new Date(a.lastUpdated));
   }
 
@@ -481,12 +516,14 @@ class RankingService {
     this.rankingLists = this.getDefaultLists();
     this.visited = []; // Clear visited restaurants
     this.rank10 = {}; // Clear 1-10 rankings
+    this.restaurantMeta = {}; // Clear restaurant meta
     
     localStorage.removeItem('belp_restaurant_ratings');
     localStorage.removeItem('belp_restaurant_comparisons');
     localStorage.removeItem('belp_ranking_lists');
     localStorage.removeItem('belp_visited_restaurants'); // Clear visited restaurants
     localStorage.removeItem('belp_rank10'); // Clear 1-10 rankings
+    localStorage.removeItem('belp_restaurant_meta'); // Clear restaurant meta
   }
 }
 

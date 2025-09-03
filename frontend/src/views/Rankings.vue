@@ -198,6 +198,32 @@
         </div>
       </div>
 
+      <!-- By Cuisine Tab -->
+      <div v-if="activeTab === 'cuisine'" class="cuisine-tab">
+        <h2>My Rankings by Cuisine</h2>
+        <div v-if="Object.keys(groupedByCuisine).length === 0" class="empty-state">
+          <div class="empty-icon">🍽️</div>
+          <h3>No ranked restaurants yet</h3>
+          <p>Rate restaurants (1–10) to see them grouped here by cuisine</p>
+          <router-link to="/search" class="btn-primary">Go to Search</router-link>
+        </div>
+        <div v-else class="cuisine-groups">
+          <div v-for="(items, cuisine) in groupedByCuisine" :key="cuisine" class="cuisine-group">
+            <div class="cuisine-header">
+              <h3>{{ cuisine }}</h3>
+              <span class="cuisine-count">{{ items.length }} ranked</span>
+            </div>
+            <div class="cuisine-list">
+              <div v-for="entry in items" :key="entry.restaurantId" class="cuisine-item">
+                <div class="ci-name">{{ entry.meta?.name || entry.restaurantId }}</div>
+                <div class="ci-meta">{{ entry.meta?.address }}</div>
+                <div class="ci-score">{{ entry.score }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- To Rank quick panel -->
       <div class="to-rank-panel" v-if="toRank && toRank.restaurants.length">
         <h3>To Rank</h3>
@@ -331,7 +357,8 @@ export default {
       tabs: [
         { id: 'ratings', label: 'My Ratings' },
         { id: 'lists', label: 'My Lists' },
-        { id: 'comparisons', label: 'Comparisons' }
+        { id: 'comparisons', label: 'Comparisons' },
+        { id: 'cuisine', label: 'By Cuisine' }
       ],
       searchQuery: '',
       showCreateListModal: false,
@@ -372,6 +399,59 @@ export default {
     },
     toRank() {
       return rankingService.getToRankList()
+    },
+    groupedByCuisine() {
+      const entries = this.rank10Entries
+      const groups = {}
+      const cuisineMap = {
+        'italian': 'Italian', 'pizza': 'Italian', 'pasta': 'Italian',
+        'mexican': 'Mexican', 'taco': 'Mexican', 'tacos': 'Mexican', 'burrito': 'Mexican',
+        'chinese': 'Chinese', 'szechuan': 'Chinese', 'dim sum': 'Chinese',
+        'japanese': 'Japanese', 'sushi': 'Japanese', 'ramen': 'Japanese',
+        'korean': 'Korean', 'bbq': 'BBQ',
+        'thai': 'Thai', 'vietnamese': 'Vietnamese', 'pho': 'Vietnamese', 'banh mi': 'Vietnamese',
+        'indian': 'Indian', 'mediterranean': 'Mediterranean', 'greek': 'Greek', 'french': 'French',
+        'american': 'American', 'seafood': 'Seafood', 'burger': 'Burgers', 'burgers': 'Burgers',
+      }
+      const generic = new Set(['restaurants', 'restaurant', 'food', 'dining', 'bars', 'bar', 'grill', 'cafe', 'cafes'])
+      const findCuisine = (text) => {
+        const s = String(text || '').toLowerCase()
+        // exact token match first
+        const toks = s.split(',').map(t => t.trim()).filter(Boolean)
+        for (const t of toks) {
+          const cleaned = t.replace(/\brestaurant(s)?\b/g, '').trim()
+          if (!cleaned || generic.has(cleaned)) continue
+          if (cuisineMap[cleaned]) return cuisineMap[cleaned]
+        }
+        // contains match in tokens
+        for (const t of toks) {
+          for (const k in cuisineMap) {
+            if (t.includes(k)) return cuisineMap[k]
+          }
+        }
+        // contains match in whole string
+        for (const k in cuisineMap) {
+          if (s.includes(k)) return cuisineMap[k]
+        }
+        // fallback to first non-generic token title-cased
+        for (const t of toks) {
+          const cleaned = t.replace(/\brestaurant(s)?\b/g, '').trim()
+          if (!cleaned || generic.has(cleaned)) continue
+          return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+        }
+        return 'Misc'
+      }
+      for (const e of entries) {
+        const cuisine = findCuisine(e?.meta?.categories) || findCuisine(e?.meta?.name)
+        if (!groups[cuisine]) groups[cuisine] = []
+        groups[cuisine].push(e)
+      }
+      // sort each group by score desc
+      for (const k of Object.keys(groups)) {
+        groups[k].sort((a, b) => b.score - a.score || (b.meta?.stars || 0) - (a.meta?.stars || 0))
+      }
+      // sort cuisines alphabetically
+      return Object.fromEntries(Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])))
     },
 
     filteredRatings() {
@@ -1251,4 +1331,14 @@ export default {
 .compare-title { font-weight: 800; color: #07450C; margin-bottom: 0.25rem; }
 .compare-id { font-size: 0.88rem; color: #555; margin-bottom: 0.5rem; word-break: break-word; }
 .compare-score { font-size: 1.6rem; font-weight: 900; color: #07450C; }
+.cuisine-groups { display: grid; gap: 1.25rem; }
+.cuisine-group { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1rem; }
+.cuisine-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.cuisine-header h3 { margin: 0; color: #07450C; }
+.cuisine-count { color: #666; font-size: 0.9rem; }
+.cuisine-list { display: grid; gap: 0.5rem; }
+.cuisine-item { display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 0.5rem; align-items: center; padding: 0.5rem; border: 1px solid #f0f0f0; border-radius: 10px; }
+.ci-name { font-weight: 700; color: #1f2a1f; }
+.ci-meta { grid-column: 1 / span 1; color: #666; font-size: 0.85rem; }
+.ci-score { justify-self: end; font-weight: 900; color: #07450C; }
 </style> 

@@ -1,10 +1,10 @@
 <template>
   <div class="smart-recommendations">
-    <h3 class="rec-header">🎯 Smart Recommendations Based on Your Patterns</h3>
+    <h3 class="rec-header"> Smart Recommendations Based on Your Patterns</h3>
     
     <!-- Time-based Recommendations -->
     <div class="rec-section">
-      <h4 class="rec-subtitle">⏰ Based on Current Time</h4>
+      <h4 class="rec-subtitle"> Based on Current Time</h4>
       <div class="rec-cards">
         <div v-for="rec in timeBasedRecs" :key="rec.id" class="rec-card">
           <div class="rec-icon">{{ rec.icon }}</div>
@@ -22,7 +22,7 @@
 
     <!-- Pattern-based Recommendations -->
     <div class="rec-section">
-      <h4 class="rec-subtitle">📊 Based on Your History</h4>
+      <h4 class="rec-subtitle"> Based on Your History</h4>
       <div class="rec-cards">
         <div v-for="rec in patternBasedRecs" :key="rec.id" class="rec-card">
           <div class="rec-icon">{{ rec.icon }}</div>
@@ -43,7 +43,7 @@
 
     <!-- Discovery Recommendations -->
     <div class="rec-section">
-      <h4 class="rec-subtitle">🌟 Try Something New</h4>
+      <h4 class="rec-subtitle"> Try Something New</h4>
       <div class="rec-cards">
         <div v-for="rec in discoveryRecs" :key="rec.id" class="rec-card">
           <div class="rec-icon">{{ rec.icon }}</div>
@@ -202,7 +202,8 @@ export default {
         'Vietnamese': '🍜',
         'Lebanese': '🥙',
         'Spanish': '🥘',
-        'German': '🍖'
+        'German': '🍖',
+        'Italian': '🍝',
       }
       return iconMap[cuisine] || '🍽️'
     },
