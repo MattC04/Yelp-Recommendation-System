@@ -225,6 +225,32 @@
           </div>
         </div>
       </div>
+
+      <!-- Compare modal -->
+      <div v-if="showCompareModal" class="modal-overlay" @click="closeCompareModal">
+        <div class="modal" @click.stop>
+          <div class="modal-header">
+            <h3>Comparison</h3>
+            <button @click="closeCompareModal" class="close-btn">×</button>
+          </div>
+          <div class="modal-content compare-content">
+            <div class="compare-col">
+              <div class="compare-title">Current Top</div>
+              <div class="compare-id">{{ compareA.id }}</div>
+              <div class="compare-score">{{ compareA.score }}</div>
+            </div>
+            <div class="compare-col">
+              <div class="compare-title">Your New Rating</div>
+              <div class="compare-id">{{ compareB.id }}</div>
+              <div class="compare-score">{{ compareB.score }}</div>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="save-btn" @click="goToTopRanked">View Top Ranked</button>
+            <button class="cancel-btn" @click="closeCompareModal">Close</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Create List Modal -->
@@ -316,7 +342,10 @@ export default {
       selectedRestaurants: [],
       showRankModal: false,
       rankRestaurantId: '',
-      tempScore: 0
+      tempScore: 0,
+      showCompareModal: false,
+      compareA: { id: '', score: 0 },
+      compareB: { id: '', score: 0 }
     }
   },
   computed: {
@@ -330,7 +359,10 @@ export default {
       return rankingService.getAllComparisons()
     },
     totalRatings() {
-      return this.userRatings.length
+      return this.rank10Entries.length
+    },
+    rank10Entries() {
+      return rankingService.getRank10Entries()
     },
     totalComparisons() {
       return this.comparisons.length
@@ -470,15 +502,33 @@ export default {
     },
     saveRank() {
       if (!this.rankRestaurantId || !this.tempScore) return
+      const before = rankingService.getRank10Entries().length
       rankingService.setRank10(this.rankRestaurantId, this.tempScore)
       // Remove from to-rank list after rating
       rankingService.removeFromRankingList('to_rank', this.rankRestaurantId)
       this.showRankModal = false
       this.$forceUpdate()
-    }
+
+      const after = rankingService.getRank10Entries().length
+      // If user has reached 5+ ratings, compare new one with current top
+      if (before >= 5 || after >= 6) {
+        const top = rankingService.getRank10Entries()[0]
+        if (top && top.restaurantId !== this.rankRestaurantId) {
+          const newEntry = rankingService.getRank10(this.rankRestaurantId)
+          this.compareA = { id: top.restaurantId, score: top.score }
+          this.compareB = { id: this.rankRestaurantId, score: newEntry?.score || this.tempScore }
+          try {
+            // Log a comparison entity as well
+            rankingService.createComparison([top.restaurantId, this.rankRestaurantId], 'Top vs New')
+          } catch {}
+          this.showCompareModal = true
+        }
+      }
+    },
+    closeCompareModal() { this.showCompareModal = false },
+    goToTopRanked() { this.showCompareModal = false; this.activeTab = 'lists' },
   },
   mounted() {
-    // Load data when component mounts
     // Open rank modal if navigated with ?rank=<id>
     const rid = this.$route.query.rank
     if (rid) {
@@ -1196,4 +1246,9 @@ export default {
 .rank-grid { display: grid; grid-template-columns: repeat(5, minmax(40px, 1fr)); gap: 0.5rem; }
 .rank-chip { padding: 0.6rem 0; border: 1px solid #e0e0e0; border-radius: 10px; background: #fff; cursor: pointer; font-weight: 700; }
 .rank-chip.active, .rank-chip:hover { border-color: #07450C; color: #07450C; background: rgba(7,69,12,0.06); }
+.compare-content { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.compare-col { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1rem; text-align: center; }
+.compare-title { font-weight: 800; color: #07450C; margin-bottom: 0.25rem; }
+.compare-id { font-size: 0.88rem; color: #555; margin-bottom: 0.5rem; word-break: break-word; }
+.compare-score { font-size: 1.6rem; font-weight: 900; color: #07450C; }
 </style> 
