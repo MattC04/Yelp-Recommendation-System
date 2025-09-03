@@ -197,6 +197,34 @@
           </div>
         </div>
       </div>
+
+      <!-- To Rank quick panel -->
+      <div class="to-rank-panel" v-if="toRank && toRank.restaurants.length">
+        <h3>To Rank</h3>
+        <div class="to-rank-list">
+          <button v-for="rid in toRank.restaurants" :key="rid" class="to-rank-item" @click="openRankModal(rid)">{{ rid }}</button>
+        </div>
+      </div>
+
+      <!-- Rank modal -->
+      <div v-if="showRankModal" class="modal-overlay" @click="closeRankModal">
+        <div class="modal" @click.stop>
+          <div class="modal-header">
+            <h3>Rate Restaurant (1-10)</h3>
+            <button @click="closeRankModal" class="close-btn">×</button>
+          </div>
+          <div class="modal-content">
+            <div class="rank-restaurant-id">{{ rankRestaurantId }}</div>
+            <div class="rank-grid">
+              <button v-for="n in 10" :key="n" @click="setRank(n)" :class="['rank-chip', { active: n === tempScore }]">{{ n }}</button>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="cancel-btn" @click="closeRankModal">Cancel</button>
+            <button class="save-btn" :disabled="!tempScore" @click="saveRank">Save</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Create List Modal -->
@@ -285,7 +313,10 @@ export default {
       newListName: '',
       newListDescription: '',
       newComparisonTitle: '',
-      selectedRestaurants: []
+      selectedRestaurants: [],
+      showRankModal: false,
+      rankRestaurantId: '',
+      tempScore: 0
     }
   },
   computed: {
@@ -306,6 +337,9 @@ export default {
     },
     totalLists() {
       return this.personalLists.length
+    },
+    toRank() {
+      return rankingService.getToRankList()
     },
 
     filteredRatings() {
@@ -420,10 +454,36 @@ export default {
     showToast(message) {
       // Simple toast implementation
       alert(message)
+    },
+    openRankModal(restaurantId) {
+      this.rankRestaurantId = restaurantId
+      this.tempScore = rankingService.getRank10(restaurantId)?.score || 0
+      this.showRankModal = true
+    },
+    closeRankModal() {
+      this.showRankModal = false
+      this.rankRestaurantId = ''
+      this.tempScore = 0
+    },
+    setRank(n) {
+      this.tempScore = n
+    },
+    saveRank() {
+      if (!this.rankRestaurantId || !this.tempScore) return
+      rankingService.setRank10(this.rankRestaurantId, this.tempScore)
+      // Remove from to-rank list after rating
+      rankingService.removeFromRankingList('to_rank', this.rankRestaurantId)
+      this.showRankModal = false
+      this.$forceUpdate()
     }
   },
   mounted() {
     // Load data when component mounts
+    // Open rank modal if navigated with ?rank=<id>
+    const rid = this.$route.query.rank
+    if (rid) {
+      this.openRankModal(rid)
+    }
   }
 }
 </script>
@@ -1128,4 +1188,12 @@ export default {
     max-height: 95vh;
   }
 }
+
+.to-rank-panel { margin: 1rem 0 2rem; padding: 1rem; border: 1px solid #e0e0e0; border-radius: 12px; background: #fafdfb; }
+.to-rank-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.to-rank-item { padding: 0.4rem 0.75rem; border: 1px solid #07450C; color: #07450C; background: #fff; border-radius: 10px; cursor: pointer; font-weight: 600; }
+.rank-restaurant-id { color: #07450C; font-weight: 700; margin-bottom: 0.75rem; }
+.rank-grid { display: grid; grid-template-columns: repeat(5, minmax(40px, 1fr)); gap: 0.5rem; }
+.rank-chip { padding: 0.6rem 0; border: 1px solid #e0e0e0; border-radius: 10px; background: #fff; cursor: pointer; font-weight: 700; }
+.rank-chip.active, .rank-chip:hover { border-color: #07450C; color: #07450C; background: rgba(7,69,12,0.06); }
 </style> 

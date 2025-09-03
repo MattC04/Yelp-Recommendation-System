@@ -6,6 +6,8 @@ class RankingService {
     this.ratings = this.loadRatings();
     this.comparisons = this.loadComparisons();
     this.rankingLists = this.loadRankingLists();
+    this.visited = this.loadVisited();
+    this.rank10 = this.loadRank10();
   }
 
   // Load user ratings from localStorage
@@ -39,6 +41,80 @@ class RankingService {
       console.warn('Failed to load ranking lists:', error);
       return this.getDefaultLists();
     }
+  }
+
+  // Load visited restaurants from localStorage
+  loadVisited() {
+    try {
+      const stored = localStorage.getItem('belp_visited_restaurants');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.warn('Failed to load visited:', e);
+      return [];
+    }
+  }
+
+  saveVisited() {
+    try {
+      localStorage.setItem('belp_visited_restaurants', JSON.stringify(this.visited));
+    } catch (e) {
+      console.error('Failed to save visited:', e);
+    }
+  }
+
+  markVisited(restaurant) {
+    const restaurantId = restaurant.restaurantId || `${restaurant.name}||${restaurant.address}`;
+    if (!this.visited.find(v => v.restaurantId === restaurantId)) {
+      this.visited.unshift({
+        restaurantId,
+        name: restaurant.name,
+        address: restaurant.address,
+        categories: restaurant.categories || '',
+        stars: restaurant.stars || 0,
+        timestamp: new Date().toISOString()
+      });
+      // keep last 200
+      if (this.visited.length > 200) this.visited = this.visited.slice(0, 200);
+      this.saveVisited();
+    }
+    return this.visited[0];
+  }
+
+  unmarkVisited(restaurantId) {
+    this.visited = this.visited.filter(v => v.restaurantId !== restaurantId);
+    this.saveVisited();
+  }
+
+  isVisited(restaurantId) {
+    return !!this.visited.find(v => v.restaurantId === restaurantId);
+  }
+
+  getVisited() {
+    return [...this.visited];
+  }
+
+  ensureList(listId, name, description, type = 'personal') {
+    let list = this.rankingLists.find(l => l.id === listId);
+    if (!list) {
+      list = { id: listId, name, description, type, restaurants: [], createdAt: new Date().toISOString(), lastUpdated: new Date().toISOString() };
+      this.rankingLists.push(list);
+      this.saveRankingLists();
+    }
+    return list;
+  }
+
+  addToToRank(restaurantId) {
+    const list = this.ensureList('to_rank', 'To Rank', 'Restaurants to rate', 'personal');
+    if (!list.restaurants.includes(restaurantId)) {
+      list.restaurants.unshift(restaurantId);
+      list.lastUpdated = new Date().toISOString();
+      this.saveRankingLists();
+    }
+    return list;
+  }
+
+  getToRankList() {
+    return this.rankingLists.find(l => l.id === 'to_rank') || null;
   }
 
   // Get default ranking lists
@@ -354,15 +430,63 @@ class RankingService {
     }
   }
 
+  // 1-10 ranking store
+  loadRank10() {
+    try {
+      const stored = localStorage.getItem('belp_rank10');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      console.warn('Failed to load rank10:', e);
+      return {};
+    }
+  }
+
+  saveRank10() {
+    try {
+      localStorage.setItem('belp_rank10', JSON.stringify(this.rank10));
+    } catch (e) {
+      console.error('Failed to save rank10:', e);
+    }
+  }
+
+  setRank10(restaurantId, score) {
+    const bounded = Math.max(1, Math.min(10, Number(score) || 0));
+    this.rank10[restaurantId] = { score: bounded, lastUpdated: new Date().toISOString() };
+    this.saveRank10();
+    this.updateRankedTopList();
+    return this.rank10[restaurantId];
+  }
+
+  getRank10(restaurantId) {
+    return this.rank10[restaurantId] || null;
+  }
+
+  getRank10Entries() {
+    return Object.entries(this.rank10)
+      .map(([restaurantId, v]) => ({ restaurantId, score: v.score, lastUpdated: v.lastUpdated }))
+      .sort((a, b) => b.score - a.score || new Date(b.lastUpdated) - new Date(a.lastUpdated));
+  }
+
+  updateRankedTopList() {
+    const list = this.ensureList('ranked_top', 'Top Ranked (1-10)', 'Your top ranked restaurants', 'personal');
+    list.restaurants = this.getRank10Entries().map(e => e.restaurantId).slice(0, 50);
+    list.lastUpdated = new Date().toISOString();
+    this.saveRankingLists();
+  }
+
   // Clear all ranking data (for testing/reset)
   clearAllData() {
     this.ratings = {};
     this.comparisons = [];
     this.rankingLists = this.getDefaultLists();
+    this.visited = []; // Clear visited restaurants
+    this.rank10 = {}; // Clear 1-10 rankings
     
     localStorage.removeItem('belp_restaurant_ratings');
     localStorage.removeItem('belp_restaurant_comparisons');
     localStorage.removeItem('belp_ranking_lists');
+    localStorage.removeItem('belp_visited_restaurants'); // Clear visited restaurants
+    localStorage.removeItem('belp_rank10'); // Clear 1-10 rankings
   }
 }
 

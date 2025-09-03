@@ -68,13 +68,17 @@
       </div>
 
       <div class="results-list">
-        <div v-for="r in sortedResults" :key="r.name + '|' + r.address" class="result-card" @mouseenter="recordView(r)" @click="recordClick(r)">
-          <div class="card-main">
+        <div v-for="r in sortedResults" :key="r.name + '|' + r.address" class="result-card" @mouseenter="recordView(r)">
+          <div class="card-main" @click="recordClick(r)">
             <div class="card-title">{{ r.name }}</div>
             <div class="card-sub">{{ r.address }}</div>
             <div class="card-meta">{{ Number(r.stars || 0).toFixed(1) }} ⭐ • {{ r.review_count }} reviews • {{ r.categories }}</div>
           </div>
-          <div class="card-score">{{ r.score || Math.round((r.stars || 0) * 20) }}</div>
+          <div class="card-actions">
+            <button class="btn-outline" @click.stop="queueForRanking(r)">Rank</button>
+            <button class="btn-visited" :class="{ active: isVisited(r) }" @click.stop="toggleVisited(r)">{{ isVisited(r) ? "I've been" : "I've been" }}</button>
+            <div class="card-score">{{ r.score || Math.round((r.stars || 0) * 20) }}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -88,6 +92,7 @@ import axios from 'axios'
 import aiRecommender from '@/services/aiRecommender.js'
 import feedbackService from '@/services/feedbackService.js'
 import securityService from '@/services/securityService.js'
+import rankingService from '@/services/rankingService.js'
 
 export default {
   name: 'YelpSearch',
@@ -192,6 +197,33 @@ export default {
         default: return 'AI Score'
       }
     },
+    queueForRanking(restaurant) {
+      const id = restaurant.restaurantId || `${restaurant.name}||${restaurant.address}`
+      rankingService.addToToRank(id)
+      this.showToast('Added to your To Rank list')
+      this.$router.push('/rankings')
+    },
+    toggleVisited(restaurant) {
+      const id = restaurant.restaurantId || `${restaurant.name}||${restaurant.address}`
+      if (rankingService.isVisited(id)) {
+        rankingService.unmarkVisited(id)
+        this.showToast('Removed from visited')
+      } else {
+        rankingService.markVisited({
+          restaurantId: id,
+          name: restaurant.name,
+          address: restaurant.address,
+          categories: restaurant.categories,
+          stars: restaurant.stars
+        })
+        this.showToast('Marked as visited')
+      }
+      this.$forceUpdate()
+    },
+    isVisited(restaurant) {
+      const id = restaurant.restaurantId || `${restaurant.name}||${restaurant.address}`
+      return rankingService.isVisited(id)
+    },
     recordView(restaurant) {
       const cuisine = String(restaurant.categories || restaurant.cuisine || '')
       feedbackService.recordView({ restaurantName: restaurant.name, cuisine })
@@ -290,6 +322,11 @@ export default {
 .card-title { font-weight: 900; color: var(--belp-ink); letter-spacing: .01em; }
 .card-sub { color: var(--belp-ink-2); font-size: 0.94rem; margin-top: 2px; }
 .card-meta { color: #5f6d62; font-size: 0.86rem; margin-top: 8px; }
+.card-actions { display: grid; grid-auto-flow: column; align-items: center; gap: 0.5rem; }
+.btn-outline { padding: 0.45rem 0.8rem; border: 1px solid var(--belp-green); color: var(--belp-green); background: #fff; border-radius: 10px; font-weight: 700; cursor: pointer; }
+.btn-outline:hover { background: rgba(7,69,12,0.05); }
+.btn-visited { padding: 0.45rem 0.8rem; border: 1px solid #e0e0e0; color: #2b2b2b; background: #fff; border-radius: 10px; font-weight: 700; cursor: pointer; }
+.btn-visited.active { border-color: var(--belp-green); color: var(--belp-green); background: rgba(7,69,12,0.06); }
 .card-score { 
   font-weight: 900; color: var(--belp-green); font-size: 1.05rem; 
   padding: 0.45rem 0.7rem; background: var(--belp-soft); border-radius: 12px; min-width: 48px; text-align: center; 
