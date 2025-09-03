@@ -201,9 +201,18 @@ export default {
       const id = restaurant.restaurantId || `${restaurant.name}||${restaurant.address}`
       rankingService.addToToRank(id)
       // persist meta for grouping
-      rankingService.setMeta(id, { name: restaurant.name, address: restaurant.address, categories: restaurant.categories, stars: restaurant.stars })
+      const cats = String(restaurant.categories || '').toLowerCase()
+      const name = String(restaurant.name || '').toLowerCase()
+      const map = { italian:'Italian', pizza:'Italian', pasta:'Italian', mexican:'Mexican', taco:'Mexican', tacos:'Mexican', burrito:'Mexican', chinese:'Chinese', szechuan:'Chinese', dimsum:'Chinese', 'dim sum':'Chinese', japanese:'Japanese', sushi:'Japanese', ramen:'Japanese', korean:'Korean', bbq:'BBQ', thai:'Thai', vietnamese:'Vietnamese', pho:'Vietnamese', 'banh mi':'Vietnamese', indian:'Indian', mediterranean:'Mediterranean', greek:'Greek', french:'French', american:'American', seafood:'Seafood', burger:'Burgers', burgers:'Burgers' }
+      const pick = () => {
+        for (const k in map) { if (cats.includes(k) || name.includes(k)) return map[k] }
+        const t = cats.split(',').map(x=>x.trim()).find(Boolean)
+        return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''
+      }
+      const primaryCuisine = pick()
+      rankingService.setMeta(id, { name: restaurant.name, address: restaurant.address, categories: restaurant.categories, stars: restaurant.stars, primaryCuisine })
       this.showToast('Added to your To Rank list')
-      this.$router.push('/rankings')
+      this.$router.push({ path: '/rankings', query: { rank: id } })
     },
     toggleVisited(restaurant) {
       const id = restaurant.restaurantId || `${restaurant.name}||${restaurant.address}`

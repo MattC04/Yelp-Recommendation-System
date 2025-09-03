@@ -32,18 +32,18 @@
     </div>
 
     <!-- Unlock Progress Banner -->
-    <div v-if="totalRatings < 5" class="unlock-banner">
+    <div v-if="unlockCount < 5" class="unlock-banner">
       <div class="unlock-content">
         <div class="unlock-icon">🔒</div>
         <div class="unlock-text">
           <h3>Unlock Full Ranking Features</h3>
-          <p>Complete {{ 5 - totalRatings }} more review{{ 5 - totalRatings !== 1 ? 's' : '' }} to unlock all ranking capabilities!</p>
+          <p>Complete {{ 5 - unlockCount }} more review{{ 5 - unlockCount !== 1 ? 's' : '' }} to unlock all ranking capabilities!</p>
         </div>
         <div class="unlock-progress">
           <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: (totalRatings / 5 * 100) + '%' }"></div>
+            <div class="progress-fill" :style="{ width: (unlockCount / 5 * 100) + '%' }"></div>
           </div>
-          <span class="progress-text">{{ totalRatings }}/5</span>
+          <span class="progress-text">{{ unlockCount }}/5</span>
         </div>
       </div>
       <router-link to="/search" class="unlock-cta">
@@ -391,6 +391,12 @@ export default {
     rank10Entries() {
       return rankingService.getRank10Entries()
     },
+    unlockCount() {
+      // Live progress that includes the in-progress rating selection
+      const base = this.rank10Entries.length
+      const isNew = this.showRankModal && this.tempScore > 0 && !this.rank10Entries.some(e => e.restaurantId === this.rankRestaurantId)
+      return base + (isNew ? 1 : 0)
+    },
     totalComparisons() {
       return this.comparisons.length
     },
@@ -406,7 +412,7 @@ export default {
       const cuisineMap = {
         'italian': 'Italian', 'pizza': 'Italian', 'pasta': 'Italian',
         'mexican': 'Mexican', 'taco': 'Mexican', 'tacos': 'Mexican', 'burrito': 'Mexican',
-        'chinese': 'Chinese', 'szechuan': 'Chinese', 'dim sum': 'Chinese',
+        'chinese': 'Chinese', 'szechuan': 'Chinese', 'dim sum': 'Chinese', 'dimsum': 'Chinese',
         'japanese': 'Japanese', 'sushi': 'Japanese', 'ramen': 'Japanese',
         'korean': 'Korean', 'bbq': 'BBQ',
         'thai': 'Thai', 'vietnamese': 'Vietnamese', 'pho': 'Vietnamese', 'banh mi': 'Vietnamese',
@@ -414,26 +420,15 @@ export default {
         'american': 'American', 'seafood': 'Seafood', 'burger': 'Burgers', 'burgers': 'Burgers',
       }
       const generic = new Set(['restaurants', 'restaurant', 'food', 'dining', 'bars', 'bar', 'grill', 'cafe', 'cafes'])
-      const findCuisine = (text) => {
+      const pickFromText = (text) => {
         const s = String(text || '').toLowerCase()
-        // exact token match first
+        for (const k in cuisineMap) if (s.includes(k)) return cuisineMap[k]
         const toks = s.split(',').map(t => t.trim()).filter(Boolean)
         for (const t of toks) {
           const cleaned = t.replace(/\brestaurant(s)?\b/g, '').trim()
           if (!cleaned || generic.has(cleaned)) continue
           if (cuisineMap[cleaned]) return cuisineMap[cleaned]
         }
-        // contains match in tokens
-        for (const t of toks) {
-          for (const k in cuisineMap) {
-            if (t.includes(k)) return cuisineMap[k]
-          }
-        }
-        // contains match in whole string
-        for (const k in cuisineMap) {
-          if (s.includes(k)) return cuisineMap[k]
-        }
-        // fallback to first non-generic token title-cased
         for (const t of toks) {
           const cleaned = t.replace(/\brestaurant(s)?\b/g, '').trim()
           if (!cleaned || generic.has(cleaned)) continue
@@ -442,15 +437,12 @@ export default {
         return 'Misc'
       }
       for (const e of entries) {
-        const cuisine = findCuisine(e?.meta?.categories) || findCuisine(e?.meta?.name)
+        const meta = e.meta || {}
+        const cuisine = meta.primaryCuisine || pickFromText(meta.categories) || pickFromText(meta.name)
         if (!groups[cuisine]) groups[cuisine] = []
         groups[cuisine].push(e)
       }
-      // sort each group by score desc
-      for (const k of Object.keys(groups)) {
-        groups[k].sort((a, b) => b.score - a.score || (b.meta?.stars || 0) - (a.meta?.stars || 0))
-      }
-      // sort cuisines alphabetically
+      for (const k of Object.keys(groups)) groups[k].sort((a, b) => b.score - a.score || (b.meta?.stars || 0) - (a.meta?.stars || 0))
       return Object.fromEntries(Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])))
     },
 

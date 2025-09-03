@@ -458,7 +458,8 @@ class RankingService {
       name: meta?.name || safe.name || '',
       address: meta?.address || safe.address || '',
       categories: meta?.categories || safe.categories || '',
-      stars: typeof meta?.stars === 'number' ? meta.stars : (safe.stars || 0)
+      stars: typeof meta?.stars === 'number' ? meta.stars : (safe.stars || 0),
+      primaryCuisine: meta?.primaryCuisine || safe.primaryCuisine || ''
     };
     this.saveMeta();
     return this.restaurantMeta[restaurantId];
