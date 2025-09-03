@@ -256,23 +256,22 @@
       <div v-if="showCompareModal" class="modal-overlay" @click="closeCompareModal">
         <div class="modal" @click.stop>
           <div class="modal-header">
-            <h3>Comparison</h3>
+            <h3>These two are close. Which do you prefer?</h3>
             <button @click="closeCompareModal" class="close-btn">×</button>
           </div>
           <div class="modal-content compare-content">
-            <div class="compare-col">
-              <div class="compare-title">Current Top</div>
+            <div class="compare-col selectable" @click="prefer(compareA, compareB)">
+              <div class="compare-title">{{ compareA.name || 'Restaurant A' }}</div>
               <div class="compare-id">{{ compareA.id }}</div>
               <div class="compare-score">{{ compareA.score }}</div>
             </div>
-            <div class="compare-col">
-              <div class="compare-title">Your New Rating</div>
+            <div class="compare-col selectable" @click="prefer(compareB, compareA)">
+              <div class="compare-title">{{ compareB.name || 'Restaurant B' }}</div>
               <div class="compare-id">{{ compareB.id }}</div>
               <div class="compare-score">{{ compareB.score }}</div>
             </div>
           </div>
           <div class="modal-actions">
-            <button class="save-btn" @click="goToTopRanked">View Top Ranked</button>
             <button class="cancel-btn" @click="closeCompareModal">Close</button>
           </div>
         </div>
@@ -371,8 +370,8 @@ export default {
       rankRestaurantId: '',
       tempScore: 0,
       showCompareModal: false,
-      compareA: { id: '', score: 0 },
-      compareB: { id: '', score: 0 }
+      compareA: { id: '', score: 0, name: '' },
+      compareB: { id: '', score: 0, name: '' }
     }
   },
   computed: {
@@ -581,21 +580,38 @@ export default {
       this.showRankModal = false
       this.$forceUpdate()
 
-      const after = rankingService.getRank10Entries().length
-      // If user has reached 5+ ratings, compare new one with current top
-      if (before >= 5 || after >= 6) {
-        const top = rankingService.getRank10Entries()[0]
-        if (top && top.restaurantId !== this.rankRestaurantId) {
-          const newEntry = rankingService.getRank10(this.rankRestaurantId)
-          this.compareA = { id: top.restaurantId, score: top.score }
-          this.compareB = { id: this.rankRestaurantId, score: newEntry?.score || this.tempScore }
-          try {
-            // Log a comparison entity as well
-            rankingService.createComparison([top.restaurantId, this.rankRestaurantId], 'Top vs New')
-          } catch {}
+      const entries = rankingService.getRank10Entries()
+      // find the newly rated entry and the closest neighbor by absolute score difference
+      const idx = entries.findIndex(e => e.restaurantId === this.rankRestaurantId)
+      if (idx !== -1) {
+        const current = entries[idx]
+        let neighbor = null
+        if (idx > 0) neighbor = { ...entries[idx - 1] }
+        if (idx < entries.length - 1) {
+          const lower = { ...entries[idx + 1] }
+          if (!neighbor || Math.abs(lower.score - current.score) < Math.abs(neighbor.score - current.score)) neighbor = lower
+        }
+        const THRESHOLD = 1 // scores within 1 point considered similar
+        if (neighbor && Math.abs(neighbor.score - current.score) <= THRESHOLD) {
+          this.compareA = { id: neighbor.restaurantId, score: neighbor.score, name: neighbor.meta?.name || neighbor.restaurantId }
+          this.compareB = { id: current.restaurantId, score: current.score, name: current.meta?.name || current.restaurantId }
           this.showCompareModal = true
         }
       }
+    },
+    prefer(preferred, other) {
+      // Nudge preferred up, other down slightly to break ties and reflect choice
+      const up = (Number(preferred.score) || 0) + 0.1
+      const down = Math.max(1, (Number(other.score) || 0) - 0.1)
+      rankingService.setRank10(preferred.id, up)
+      rankingService.setRank10(other.id, down)
+      this.showCompareModal = false
+      this.$forceUpdate()
+    },
+    shortName(name) {
+      if (!name) return 'A'
+      const n = String(name)
+      return n.length > 18 ? n.slice(0, 18) + '…' : n
     },
     closeCompareModal() { this.showCompareModal = false },
     goToTopRanked() { this.showCompareModal = false; this.activeTab = 'lists' },
@@ -1320,8 +1336,10 @@ export default {
 .rank-chip.active, .rank-chip:hover { border-color: #07450C; color: #07450C; background: rgba(7,69,12,0.06); }
 .compare-content { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .compare-col { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1rem; text-align: center; }
+.compare-col.selectable { cursor: pointer; transition: transform .06s ease, box-shadow .15s ease, border-color .15s ease; }
+.compare-col.selectable:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(0,0,0,0.08); border-color: #07450C; }
 .compare-title { font-weight: 800; color: #07450C; margin-bottom: 0.25rem; }
-.compare-id { font-size: 0.88rem; color: #555; margin-bottom: 0.5rem; word-break: break-word; }
+.compare-id { font-size: 0.8rem; color: #666; margin-bottom: 0.5rem; word-break: break-word; }
 .compare-score { font-size: 1.6rem; font-weight: 900; color: #07450C; }
 .cuisine-groups { display: grid; gap: 1.25rem; }
 .cuisine-group { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1rem; }
