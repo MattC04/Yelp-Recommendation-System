@@ -3,7 +3,7 @@
 A full-stack recommendation app that ranks restaurants using reviews, sentiment, and NLP semantics, with a Vue frontend and a FastAPI backend.
 
 ## Overview
-- Frontend: Vue (`frontend/src/components/YelpSearch.vue`) with a dual-field search (Find + Near), result ranking and explanations, loading animation, and minimal AI scoring fallback in the UI.
+- Frontend: Vue (`frontend/src/components/YelpSearch.vue`) with a dual-field search (Find + Near), result ranking and explanations, loading animation, optional map view, and minimal AI scoring fallback in the UI.
 - Backend: FastAPI (`backend/main.py`) that loads the processed Yelp dataset, computes TF‑IDF and (optionally) SentenceTransformer semantic similarities, and exposes a unified `/search` endpoint.
 - Data: Main raw reviews live in `data/yelp_reviews.csv` (large). A processed, smaller file with sentiment and bag-of-words lives in `output/yelp_reviews_bow_sentiment.csv` and is used for fast search.
 
@@ -37,6 +37,7 @@ File: `backend/main.py`
   - Response: array of restaurants with fields:
     - `name`, `address`, `stars`, `categories`, `review_count`
     - Scores: `score` (UI), `overall_score`, `semantic_score`, `tfidf_score`, `keyword_score`, `rating_score`, `popularity_score`
+    - Location: `latitude`, `longitude` (if present in data)
 
 ### Ranking Pipeline (Backend)
 1. Optional location filter across `address`, `city`, `state`, `postal_code` (case-insensitive substring).
@@ -69,6 +70,11 @@ File: `frontend/src/components/YelpSearch.vue`
 4. Results render with a loading animation while awaiting response.
 5. UI applies an optional AI scoring via `aiRecommender.scoreAndExplain` and falls back to star-based scoring if it fails.
 6. Sorting options (AI Score, Rating, Popularity) reorder the displayed list client-side.
+
+### Map Search
+- Toggle between List and Map views using the buttons in `YelpSearch.vue`.
+- The Map view uses `frontend/src/components/MapResults.vue` (Leaflet via CDN) to plot markers for results that include `latitude` and `longitude`.
+- The map will auto-fit to visible markers. If your dataset lacks coordinates, markers will be sparse; consider enriching data or adding geocoding.
 
 ## How to Run (Development)
 Backend (PowerShell on Windows):
@@ -103,7 +109,8 @@ backend/
   main.py            # FastAPI app with /search
   check_data.py      # Data sanity checks
 frontend/
-  src/components/YelpSearch.vue  # Search UI
+  src/components/YelpSearch.vue  # Search UI (List/Map toggle)
+  src/components/MapResults.vue  # Leaflet map for results
   src/services/aiRecommender.js  # Optional UI scoring
   src/services/securityService.js
 output/
