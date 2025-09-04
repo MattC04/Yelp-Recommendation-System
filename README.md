@@ -90,7 +90,7 @@ npm run dev
 Open the dev URL printed by Vite (usually `http://localhost:5173`).
 
 ## Troubleshooting
-- “Method Not Allowed”: ensure the frontend calls `POST /search` (not a GET) and backend is running on `:8000`.
+- "Method Not Allowed": ensure the frontend calls `POST /search` (not a GET) and backend is running on `:8000`.
 - Empty results:
   - Try query without location; then try a different term (e.g., "sushi").
   - Confirm `/health` shows `data_loaded: true` and `nlp_available`.
