@@ -376,6 +376,8 @@ class Restaurant(BaseModel):
 	keyword_score: float = 0.0
 	rating_score: float = 0.0
 	popularity_score: float = 0.0
+	latitude: Optional[float] = None
+	longitude: Optional[float] = None
 
 
 @app.get("/")
@@ -1068,7 +1070,7 @@ def unified_search(req: SearchRequest):
 						pass
 			keyword_scores = kw_series.values
 
-		# Build score
+		# Build the score
 		def _norm(x):
 			if x is None: return None
 			x = np.array(x, dtype=float)
@@ -1133,7 +1135,9 @@ def unified_search(req: SearchRequest):
 				tfidf_score=float(row.get('tfidf_score', 0.0)),
 				keyword_score=float(row.get('keyword_score', 0.0)),
 				rating_score=float(row.get('stars', 0.0)) / 5.0,
-				popularity_score=float(row.get('review_count', 0.0)) / max(float(working['review_count'].max()) if 'review_count' in working.columns else 1.0, 1.0)
+				popularity_score=float(row.get('review_count', 0.0)) / max(float(working['review_count'].max()) if 'review_count' in working.columns else 1.0, 1.0),
+				latitude=float(row.get('latitude')) if 'latitude' in working.columns and pd.notna(row.get('latitude')) else None,
+				longitude=float(row.get('longitude')) if 'longitude' in working.columns and pd.notna(row.get('longitude')) else None
 			))
 
 		return results
