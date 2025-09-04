@@ -30,6 +30,12 @@
       </div>
     </div>
 
+    <!-- Toggle -->
+    <div class="view-toggle">
+      <button :class="['toggle-btn', { active: activeView==='list' }]" @click="activeView='list'">List</button>
+      <button :class="['toggle-btn', { active: activeView==='map' }]" @click="activeView='map'">Map</button>
+    </div>
+
     <div v-if="loading" class="loading-section" aria-live="polite">
       <div class="kitchen-loader" role="status" aria-label="Cooking recommendations">
         <div class="pot">
@@ -47,13 +53,17 @@
       <p class="loading-caption">Cooking up recommendations...</p>
     </div>
 
+    <div v-else-if="activeView==='map'">
+      <MapResults :results="resultsWithCoords" />
+    </div>
+
     <div v-else-if="!error && results.length === 0" class="empty-state">
       <div class="empty-emoji">🔎</div>
       <h3 class="empty-title">Start exploring great places</h3>
       <p class="empty-text">Try a cuisine like "sushi" or an occasion like "date night", and set your location.</p>
     </div>
 
-    <div v-if="!loading && results.length > 0" class="results-section">
+    <div v-if="!loading && activeView==='list' && results.length > 0" class="results-section">
       <div class="results-header">
         <h3 class="results-title">{{ resultsTitle }}</h3>
         <div class="results-controls">
@@ -93,9 +103,11 @@ import aiRecommender from '@/services/aiRecommender.js'
 import feedbackService from '@/services/feedbackService.js'
 import securityService from '@/services/securityService.js'
 import rankingService from '@/services/rankingService.js'
+import MapResults from '@/components/MapResults.vue'
 
 export default {
   name: 'YelpSearch',
+  components: { MapResults },
   data() {
     return {
       query: '',
@@ -108,13 +120,18 @@ export default {
       error: '',
       toast: { show: false, text: '' },
       hasProfile: false,
-      discoveryProgress: 0
+      discoveryProgress: 0,
+      activeView: 'list'
     }
   },
   computed: {
     filteredResults() {
       if (!Array.isArray(this.results) || this.results.length === 0) return []
       return [...this.results]
+    },
+    resultsWithCoords() {
+      // Filter to items that have valid lat/lng so map doesn’t try to plot nulls
+      return this.results.filter(r => Number.isFinite(Number(r.latitude)) && Number.isFinite(Number(r.longitude)))
     },
     aiProcessedResults() {
       const base = this.filteredResults
@@ -359,6 +376,11 @@ export default {
 .s2 { animation-delay: 0.5s; }
 .s3 { animation-delay: 1s; }
 @keyframes steam { 0% { transform: translate(-10px, 0) scale(0.9); opacity: 0.2; } 50% { transform: translate(-4px, -25px) scale(1); opacity: 0.8; } 100% { transform: translate(8px, -50px) scale(0.8); opacity: 0; } }
+
+/* Add minimal styles for view toggle */
+.view-toggle { display: inline-flex; gap: 6px; margin: 0.5rem 0 0.75rem; }
+.toggle-btn { padding: 0.4rem 0.8rem; border: 1px solid #e0e0e0; background: #fff; border-radius: 999px; cursor: pointer; font-weight: 700; color: #2b2b2b; }
+.toggle-btn.active { border-color: #07450C; color: #07450C; background: rgba(7,69,12,0.06); }
 
 @media (max-width: 768px) {
   .yelp-bar { flex-direction: column; align-items: stretch; }
