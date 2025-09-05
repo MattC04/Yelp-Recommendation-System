@@ -1,15 +1,36 @@
 <template>
   <div class="share-page">
-    <div class="share-header">
-      <h1>Share & Discover</h1>
-      <p>Share your dining experiences and discover amazing restaurants from others</p>
+    <div class="share-header fancy-hero">
+      <div class="hero-text">
+        <h1>Share & Discover</h1>
+        <p>Share your dining experiences and discover amazing restaurants from others</p>
+      </div>
+    </div>
+
+    <!-- Stories Strip -->
+    <div class="stories-strip">
+      <div class="story-card add-story" @click="triggerFilePicker">
+        <div class="story-avatar add">+</div>
+        <div class="story-name">Add Story</div>
+      </div>
+      <div
+        v-for="s in stories"
+        :key="s.id"
+        class="story-card"
+        :title="s.name"
+      >
+        <div class="story-avatar">
+          <img :src="s.avatar" :alt="s.name" />
+        </div>
+        <div class="story-name">{{ s.name }}</div>
+      </div>
     </div>
 
     <!-- Quick Share Section -->
-    <div class="share-section">
-      <h2>📤 Quick Share</h2>
+    <div class="share-section sticky-composer">
+      <h2>Quick Share</h2>
       <div class="quick-share-form">
-        <div class="share-input-group">
+        <div class="share-input-group relative">
           <input 
             v-model="quickShareText" 
             type="text" 
@@ -19,13 +40,11 @@
           />
           <span class="char-count">{{ quickShareText.length }}/280</span>
         </div>
-        
-        <!-- Image attachments -->
         <div class="attachments-row">
           <input ref="fileInput" type="file" accept="image/*" multiple @change="onFilesSelected" class="hidden-input" />
           <div class="attachment-actions">
-            <button @click="triggerFilePicker" class="action-btn photo-btn">📷 Add Photos</button>
-            <button @click="addLocation" class="action-btn location-btn">📍 Add Location</button>
+            <button @click="triggerFilePicker" class="action-btn pill">Add Photos</button>
+            <button @click="addLocation" class="action-btn pill outline">Add Location</button>
           </div>
           <div v-if="quickSharePreviews.length" class="preview-grid">
             <div v-for="(src, i) in quickSharePreviews" :key="i" class="preview-item">
@@ -34,9 +53,8 @@
             </div>
           </div>
         </div>
-
         <div class="share-actions">
-          <button @click="postQuickShare" class="action-btn post-btn" :disabled="!quickShareText.trim() && quickSharePreviews.length === 0">
+          <button @click="postQuickShare" class="action-btn post-btn glow" :disabled="!quickShareText.trim() && quickSharePreviews.length === 0">
             Post
           </button>
         </div>
@@ -336,6 +354,14 @@ export default {
       trendingTopics: [],
       userRecommendations: [], // Added for user recommendations
       
+      stories: [
+        { id: 1, name: 'Alex', avatar: 'https://i.pravatar.cc/100?img=12' },
+        { id: 2, name: 'Maya', avatar: 'https://i.pravatar.cc/100?img=32' },
+        { id: 3, name: 'Jordan', avatar: 'https://i.pravatar.cc/100?img=5' },
+        { id: 4, name: 'Sam', avatar: 'https://i.pravatar.cc/100?img=21' },
+        { id: 5, name: 'Taylor', avatar: 'https://i.pravatar.cc/100?img=17' }
+      ],
+
       feedFilters: [
         { id: 'all', name: 'All Posts', icon: '📱' },
         { id: 'following', name: 'Following', icon: '👥' },
@@ -712,6 +738,28 @@ export default {
   margin: 0 auto;
   padding: 2rem;
 }
+
+/* Hero */
+.fancy-hero {
+  background: linear-gradient(135deg, rgba(7,69,12,0.12), rgba(7,69,12,0.04));
+  border: 1px solid rgba(7,69,12,0.12);
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+}
+.hero-text h1 { font-size: 2.4rem; margin: 0 0 0.5rem 0; }
+.hero-text p { margin: 0; opacity: 0.85; }
+
+/* Stories */
+.stories-strip { display: flex; gap: 0.8rem; overflow-x: auto; padding: 0.75rem 0.25rem 1rem; }
+.story-card { flex: 0 0 auto; width: 76px; text-align: center; cursor: pointer; }
+.story-avatar { width: 64px; height: 64px; border-radius: 50%; overflow: hidden; border: 3px solid #07450C22; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin: 0 auto 0.4rem; display: grid; place-items: center; background: #fff; }
+.story-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.story-avatar.add { background: #07450C; color: #fff; font-weight: 800; font-size: 1.4rem; }
+.story-name { font-size: 0.75rem; color: #35543a; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.add-story { opacity: 0.95; }
+
+/* Sticky composer */
+sticky-composer { position: sticky; top: 0; z-index: 5; }
 
 .share-header {
   text-align: center;
