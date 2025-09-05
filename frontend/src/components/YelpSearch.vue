@@ -54,7 +54,7 @@
     </div>
 
     <div v-else-if="activeView==='map'">
-      <MapResults :results="resultsWithCoords" />
+      <MapResults :results="resultsWithCoords" :locationQuery="location" ref="mapComp" />
     </div>
 
     <div v-else-if="!error && results.length === 0" class="empty-state">
@@ -261,7 +261,13 @@ export default {
       feedbackService.recordClick({ restaurantName: restaurant.name, cuisine })
     },
     createProfile() { this.$router.push('/profile') },
-    showToast(text) { this.toast.text = text; this.toast.show = true; setTimeout(() => { this.toast.show = false }, 1800) }
+    showToast(text) { this.toast.text = text; this.toast.show = true; setTimeout(() => { this.toast.show = false }, 1800) },
+    toggleView(view) {
+      this.activeView = view
+      if (view === 'map') {
+        this.$nextTick(() => { this.$refs.mapComp?.resizeMap?.() })
+      }
+    }
   }
 }
 </script>
