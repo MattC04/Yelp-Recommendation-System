@@ -1,3 +1,36 @@
+# Node
+node_modules/
+dist/
+.npmrc
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Vite
+.vite/
+
+# IDE/OS
+.DS_Store
+.idea/
+.vscode/
+
+# Env
+.env
+.env.*.local
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Build/Output caches
+output/
+
+# Data dumps (keep small samples only)
+data/*.tmp
+data/*.bak
+
 # Ignore large data files
 *.json
 *.csv
