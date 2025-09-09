@@ -32,6 +32,14 @@
       </div>
     </div>
 
+    <!-- Quick Filters -->
+    <div class="quick-filters">
+      <button class="filter-chip" :class="{ active: quickFilters.minRating === 4 }" @click="toggleMinRating(4)">4.0+ Rating</button>
+      <button class="filter-chip" :class="{ active: quickFilters.popular }" @click="quickFilters.popular = !quickFilters.popular">Popular</button>
+      <button class="filter-chip" :class="{ active: quickFilters.vegFriendly }" @click="quickFilters.vegFriendly = !quickFilters.vegFriendly">Veg-friendly</button>
+      <button class="filter-clear" v-if="hasAnyFilter" @click="clearFilters">Clear</button>
+    </div>
+
     <!-- Toggle -->
     <div class="view-toggle">
       <button :class="['toggle-btn', { active: activeView==='list' }]" @click="activeView='list'">List</button>
@@ -130,14 +138,30 @@ export default {
       toast: { show: false, text: '' },
       hasProfile: false,
       discoveryProgress: 0,
-      activeView: 'list'
+      activeView: 'list',
+      quickFilters: { minRating: null, popular: false, vegFriendly: false }
     }
   },
   computed: {
     filteredResults() {
       if (!Array.isArray(this.results) || this.results.length === 0) return []
-      return [...this.results]
+      let out = [...this.results]
+      if (this.quickFilters.minRating) {
+        out = out.filter(r => Number(r.stars || 0) >= this.quickFilters.minRating)
+      }
+      if (this.quickFilters.popular) {
+        const counts = out.map(r => Number(r.review_count || 0))
+        const max = Math.max(1, ...counts)
+        const threshold = Math.max(100, Math.round(max * 0.5))
+        out = out.filter(r => Number(r.review_count || 0) >= threshold)
+      }
+      if (this.quickFilters.vegFriendly) {
+        const hasVeg = s => s.includes('vegan') || s.includes('vegetarian')
+        out = out.filter(r => hasVeg(String(r.categories || '').toLowerCase()))
+      }
+      return out
     },
+    hasAnyFilter() { return !!(this.quickFilters.minRating || this.quickFilters.popular || this.quickFilters.vegFriendly) },
     resultsWithCoords() {
       // Filter to items that have valid lat/lng so map doesn’t try to plot nulls
       return this.results.filter(r => Number.isFinite(Number(r.latitude)) && Number.isFinite(Number(r.longitude)))
@@ -183,6 +207,12 @@ export default {
         .map(s => s.trim())
         .filter(Boolean)
         .slice(0, 5)
+    },
+    toggleMinRating(v) {
+      this.quickFilters.minRating = this.quickFilters.minRating === v ? null : v
+    },
+    clearFilters() {
+      this.quickFilters = { minRating: null, popular: false, vegFriendly: false }
     },
     async search() {
       // Validate inputs
@@ -357,6 +387,13 @@ export default {
 .search-btn:not(:disabled):hover { filter: brightness(1.03); }
 .search-btn:not(:disabled):active { transform: translateY(1px); }
 .inline-debug { margin-top: 8px; font-size: 0.8rem; color: #667; }
+
+.quick-filters { display: flex; gap: 8px; margin: 0.5rem 0 0.5rem; align-items: center; flex-wrap: wrap; }
+.filter-chip {
+  padding: 0.35rem 0.7rem; border: 1px solid var(--belp-border); border-radius: 999px; background: #fff; color: var(--belp-ink-2); cursor: pointer; font-weight: 700; font-size: 0.85rem;
+}
+.filter-chip.active { border-color: var(--belp-green); color: var(--belp-green); background: rgba(7,69,12,0.06); }
+.filter-clear { background: none; border: none; color: #8aa094; cursor: pointer; font-weight: 700; }
 
 .loading-section { padding: 1.5rem; text-align: center; }
 .empty-state { 
