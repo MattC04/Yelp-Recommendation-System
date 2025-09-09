@@ -17,10 +17,12 @@
         <div class="yelp-field">
           <span class="yelp-field-label">Find</span>
           <input v-model="query" @keyup.enter="search" type="text" placeholder="burgers, sushi, date night..." class="yelp-input" />
+          <button v-if="query" class="clear-btn" @click="clearQuery" aria-label="Clear search">×</button>
         </div>
         <div class="yelp-field">
           <span class="yelp-field-label">Near</span>
           <input v-model="location" @keyup.enter="search" type="text" placeholder="San Francisco, CA or 94105" class="yelp-input" />
+          <button v-if="location" class="clear-btn" @click="clearLocation" aria-label="Clear location">×</button>
         </div>
         <button class="search-btn primary" @click="search" :disabled="loading">{{ loading ? 'Searching...' : 'Search' }}</button>
       </div>
@@ -82,7 +84,14 @@
           <div class="card-main" @click="recordClick(r)">
             <div class="card-title">{{ r.name }}</div>
             <div class="card-sub">{{ r.address }}</div>
-            <div class="card-meta">{{ Number(r.stars || 0).toFixed(1) }} ⭐ • {{ r.review_count }} reviews • {{ r.categories }}</div>
+            <div class="card-meta">
+              <span class="rating-badge">{{ Number(r.stars || 0).toFixed(1) }} ⭐</span>
+              <span class="meta-dot">•</span>
+              <span>{{ r.review_count }} reviews</span>
+            </div>
+            <div class="chips" v-if="r.categories">
+              <span v-for="(c,i) in formatChips(r.categories)" v-if="i < 3" :key="c + i" class="chip">{{ c }}</span>
+            </div>
           </div>
           <div class="card-actions">
             <button class="btn-outline" @click.stop="queueForRanking(r)">Rank</button>
@@ -166,6 +175,15 @@ export default {
     }
   },
   methods: {
+    clearQuery() { this.query = '' },
+    clearLocation() { this.location = '' },
+    formatChips(categories) {
+      return String(categories || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .slice(0, 5)
+    },
     async search() {
       // Validate inputs
       if (this.query.trim()) {
@@ -314,6 +332,7 @@ export default {
   box-shadow: 0 8px 22px rgba(7,69,12,0.06);
 }
 .yelp-field { display: flex; flex-direction: column; flex: 1; }
+.yelp-field { position: relative; }
 .yelp-field-label { font-size: 0.78rem; color: var(--belp-green); margin-bottom: 0.35rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
 .yelp-input { 
   padding: 0.7rem 0.9rem; border: 1px solid var(--belp-border); border-radius: 12px; 
@@ -322,6 +341,12 @@ export default {
 }
 .yelp-input::placeholder { color: #98a59b; }
 .yelp-input:focus { border-color: var(--belp-green); box-shadow: 0 0 0 3px rgba(7,69,12,0.12); background: #fff; }
+.clear-btn {
+  position: absolute; right: 10px; top: 32px; width: 28px; height: 28px;
+  border: none; border-radius: 50%; background: rgba(7,69,12,0.08); color: var(--belp-green);
+  cursor: pointer; font-size: 16px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+}
+.clear-btn:hover { background: rgba(7,69,12,0.15); }
 .search-btn { 
   padding: 0.8rem 1.1rem; border-radius: 12px; border: none; 
   background: linear-gradient(180deg, #0b6f14, #07450C); color: #fff; cursor: pointer; 
@@ -356,6 +381,16 @@ export default {
 .card-title { font-weight: 900; color: var(--belp-ink); letter-spacing: .01em; }
 .card-sub { color: var(--belp-ink-2); font-size: 0.94rem; margin-top: 2px; }
 .card-meta { color: #5f6d62; font-size: 0.86rem; margin-top: 8px; }
+.rating-badge {
+  display: inline-block; padding: 0.2rem 0.5rem; border-radius: 999px;
+  background: rgba(7,69,12,0.08); color: var(--belp-green); font-weight: 800; font-size: 0.78rem;
+}
+.meta-dot { margin: 0 6px; color: #8aa094; }
+.chips { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  padding: 0.18rem 0.5rem; border: 1px solid var(--belp-border); border-radius: 999px;
+  background: #fff; color: var(--belp-ink-2); font-size: 0.72rem; font-weight: 700;
+}
 .card-actions { display: grid; grid-auto-flow: column; align-items: center; gap: 0.5rem; }
 .btn-outline { padding: 0.45rem 0.8rem; border: 1px solid var(--belp-green); color: var(--belp-green); background: #fff; border-radius: 10px; font-weight: 700; cursor: pointer; }
 .btn-outline:hover { background: rgba(7,69,12,0.05); }
