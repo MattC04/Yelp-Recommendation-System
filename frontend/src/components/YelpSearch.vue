@@ -190,13 +190,16 @@ export default {
       const MIN_LOADING_MS = 900
       try {
         const payload = { query: this.query || null, location: this.location || null, limit: 25 }
+        console.log('[BELP] /search payload:', payload)
         const res = await axios.post('http://localhost:8000/search', payload)
+        console.log('[BELP] /search response length:', Array.isArray(res.data) ? res.data.length : 'non-array', res.status)
         this.results = Array.isArray(res.data) ? res.data : []
         if (this.query && this.location) this.resultsTitle = `"${this.query}" near ${this.location}`
         else if (this.query) this.resultsTitle = `Results for "${this.query}"`
         else this.resultsTitle = `Restaurants in ${this.location}`
         if (this.results.length === 0) this.showToast('No results found. Try a different query')
       } catch (err) {
+        console.error('[BELP] /search failed:', err?.response?.status, err?.response?.data || String(err))
         this.error = 'Error fetching recommendations. Please try again.'
         this.showToast('Search failed. Please try again.')
       } finally {
