@@ -343,12 +343,15 @@ export default {
   background: linear-gradient(135deg, rgba(7,69,12,0.05), rgba(7,69,12,0.02)); 
   border: 1px solid var(--belp-border); border-radius: 14px; 
 }
+.personalization-actions {
+  display: flex; gap: 0.75rem; align-items: center;
+}
 .app-title { font-size: 2rem; margin: 0; color: var(--belp-green); font-weight: 800; letter-spacing: .01em; }
 .app-subtitle { color: var(--belp-ink-2); margin: 0.2rem 0 0 0; }
 .profile-btn, .create-profile-btn { 
   padding: 0.6rem 1rem; border: 2px solid var(--belp-green); border-radius: 12px; 
   background: #fff; color: var(--belp-green); cursor: pointer; font-weight: 700; text-decoration: none; 
-  transition: all .15s ease; 
+  transition: all .15s ease;
 }
 .profile-btn:hover, .create-profile-btn:hover { 
   background: var(--belp-green); color: #fff; 
@@ -388,7 +391,7 @@ export default {
 .search-btn:not(:disabled):active { transform: translateY(1px); }
 .inline-debug { margin-top: 8px; font-size: 0.8rem; color: #667; }
 
-.quick-filters { display: flex; gap: 8px; margin: 0.5rem 0 0.5rem; align-items: center; flex-wrap: wrap; }
+.quick-filters { display: flex; gap: 12px; margin: 0.5rem 0 0.75rem; align-items: center; flex-wrap: wrap; }
 .filter-chip {
   padding: 0.35rem 0.7rem; border: 1px solid var(--belp-border); border-radius: 999px; background: #fff; color: var(--belp-ink-2); cursor: pointer; font-weight: 700; font-size: 0.85rem;
 }
@@ -428,7 +431,7 @@ export default {
   padding: 0.18rem 0.5rem; border: 1px solid var(--belp-border); border-radius: 999px;
   background: #fff; color: var(--belp-ink-2); font-size: 0.72rem; font-weight: 700;
 }
-.card-actions { display: grid; grid-auto-flow: column; align-items: center; gap: 0.5rem; }
+.card-actions { display: grid; grid-auto-flow: column; align-items: center; gap: 0.75rem; }
 .btn-outline { padding: 0.45rem 0.8rem; border: 1px solid var(--belp-green); color: var(--belp-green); background: #fff; border-radius: 10px; font-weight: 700; cursor: pointer; }
 .btn-outline:hover { background: rgba(7,69,12,0.05); }
 .btn-visited { padding: 0.45rem 0.8rem; border: 1px solid #e0e0e0; color: #2b2b2b; background: #fff; border-radius: 10px; font-weight: 700; cursor: pointer; }
@@ -456,7 +459,7 @@ export default {
 @keyframes steam { 0% { transform: translate(-10px, 0) scale(0.9); opacity: 0.2; } 50% { transform: translate(-4px, -25px) scale(1); opacity: 0.8; } 100% { transform: translate(8px, -50px) scale(0.8); opacity: 0; } }
 
 /* Add minimal styles for view toggle */
-.view-toggle { display: inline-flex; gap: 6px; margin: 0.5rem 0 0.75rem; }
+.view-toggle { display: inline-flex; gap: 10px; margin: 0.5rem 0 1rem; }
 .toggle-btn { padding: 0.4rem 0.8rem; border: 1px solid #e0e0e0; background: #fff; border-radius: 999px; cursor: pointer; font-weight: 700; color: #2b2b2b; }
 .toggle-btn.active { border-color: #07450C; color: #07450C; background: rgba(7,69,12,0.06); }
 
