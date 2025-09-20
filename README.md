@@ -77,14 +77,35 @@ File: `frontend/src/components/YelpSearch.vue`
 - The map will auto-fit to visible markers. If your dataset lacks coordinates, markers will be sparse; consider enriching data or adding geocoding.
 
 ## How to Run (Development)
-Backend (PowerShell on Windows):
+
+### Backend
 ```powershell
 cd backend
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python main.py
 ```
-Verify:
+
+**Alternative with uvicorn:**
 ```powershell
-python -c "import requests; print(requests.get('http://localhost:8000/health').json())"
+cd backend
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Verify backend is running:**
+```powershell
+curl http://localhost:8000/health
+```
+
+**If port 8000 is already in use:**
+```powershell
+# Find what's using port 8000
+netstat -ano | findstr :8000
+
+# Kill the process (replace PID with actual process ID)
+taskkill /PID <PID> /F
+
+# Then start backend
+cd backend
+python main.py
 ```
 
 Frontend:
